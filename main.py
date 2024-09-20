@@ -1,48 +1,115 @@
-from cashierService import cashier_service
-from flask import Flask
+from flask import Flask, request, jsonify, current_app
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+import json
+from flask_apscheduler import APScheduler
+
+scheduler = APScheduler()
 
 
+@scheduler.task("interval", id="do_job_1", seconds=3, misfire_grace_time=900)
+def job1():
+    with app.app_context():
+        checks = Check.query.filter_by(isProcessed=False).all()
+        for check in checks:
+            check.isProcessed = True
+            db.session.commit()
+            print('done')
 
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///check.db'
+
+# Configure SQLite database
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///checks.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SCHEDULER_API_ENABLED'] = True
+
 db = SQLAlchemy(app)
 
 
-
 class Check(db.Model):
-    
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(300), nullable=False)
-    bay = db.Column(db.Integer, nullable=False)
-    price = db.Column(db.Integer, nullable=False)
-    quiantity = db.Column(db.Integer, nullable=False)
-    type = db.Column(db.String(55), nullable=False)
-    sum = db.Column(db.Integer, nullable=False)
-    isProcessed = db.Column(db.Integer, nullable=False, default=0)
-    dateCreated = db.Column(db.DateTime, nullable=False, default=datetime.now)
-    dateProccesed = db.Column(db.DateTime, nullable=True)
-    def __repr__(self):
-         return '<Check %r>' % self.id
+    name = db.Column(db.String(100), nullable=False)
+    bay = db.Column(db.String(50), nullable=False)
+    price = db.Column(db.Float, nullable=True)  # This can be set later or added from headers
+    quantity = db.Column(db.Integer, nullable=True)  # Same for quantity
+    type = db.Column(db.String(50), nullable=False)
+    sum = db.Column(db.Float, nullable=False)
+    isProcessed = db.Column(db.Boolean, default=False)
+    dateCreated = db.Column(db.DateTime, default=datetime.utcnow)
+    dateProcessed = db.Column(db.DateTime, nullable=True)
 
 
+@app.route('/get-checks', methods=['GET'])
+def get_checks():
+    checks = Check.query.all()
+    checks_data = []
+    for check in checks:
+        checks_data.append({
+            'id': check.id,
+            'name': check.name,
+            'bay': check.bay,
+            'price': check.price,
+            'quantity': check.quantity,
+            'type': check.type,
+            'sum': check.sum,
+            'isProcessed': check.isProcessed,
+            'dateCreated': check.dateCreated,
+            'dateProcessed': check.dateProcessed
+        })
+    return jsonify(checks_data), 200
 
-
-
-@app.route('/')
-def index():
-    return 'Hello world'
 
 @app.route('/create-check', methods=['POST'])
 def create_check():
-    
+    try:
+        # Extract the JSON string from headers
+        data_str = request.headers.get('Data')  # Expecting a header called 'Data'
+
+        if not data_str:
+            return jsonify({"error": "No data provided in headers"}), 400
+
+        # Parse the JSON string to a Python object
+        try:
+            data = json.loads(data_str)
+        except json.JSONDecodeError:
+            return jsonify({"error": "Invalid JSON format"}), 400
+
+        # Extract required fields
+        name = data.get('name')
+        bay = data.get('bay')
+        sum_value = data.get('sum')
+        type_value = data.get('type')
+
+        # Validate required fields
+        if not all([name, bay, sum_value, type_value]):
+            return jsonify({"error": "Missing required fields"}), 400
+
+        # Create a new check object
+        new_check = Check(
+            name=name,
+            bay=bay,
+            sum=sum_value,
+            type=type_value
+        )
+
+        # Add and commit the new check to the database
+        db.session.add(new_check)
+        db.session.commit()
+
+        return jsonify({"message": "Check created successfully", "check_id": new_check.id}), 201
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+with app.app_context():
+    db.create_all()
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5050, host='0.0.0.0')
-
-
+    scheduler.init_app(app)
+    scheduler.start()
+    app.run(debug=True)
 
 """"
 cashier_service.open_connection()
@@ -115,10 +182,3 @@ def print_check(fptr, check_data):
 	
 		
 	"""
-
-
-
-
-
-
-
