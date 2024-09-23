@@ -121,7 +121,33 @@ class CashierService:
 
 			return { "code": 201}
 		except Exception as e:
-			return {"code": 500, "message": str(e)}
+			return {"code": 500, "message": str(e)}	
+
+	def readNextRecord(self, recordID):
+		self.fptr.setParam(IFptr.LIBFPTR_PARAM_RECORDS_ID, recordID)
+		return self.fptr.readNextRecord()
+		
+	def readLastReciept(self):
+		self.fptr.setParam(IFptr.LIBFPTR_PARAM_RECORDS_TYPE, IFptr.LIBFPTR_RT_LAST_DOCUMENT_LINES)
+		self.fptr.beginReadRecords()
+		recordsID = self.fptr.getParamString(IFptr.LIBFPTR_PARAM_RECORDS_ID)
+	
+		while self.readNextRecord(recordsID) == IFptr.LIBFPTR_OK:
+			textLine        = self.fptr.getParamString(IFptr.LIBFPTR_PARAM_TEXT)
+			font            = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_FONT)
+			linespacing     = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_LINESPACING)
+			brightness      = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_BRIGHTNESS)
+			doubleWidth     = self.fptr.getParamBool(IFptr.LIBFPTR_PARAM_FONT_DOUBLE_WIDTH)
+			doubleHeight    = self.fptr.getParamBool(IFptr.LIBFPTR_PARAM_FONT_DOUBLE_HEIGHT)
+		
+		self.fptr.setParam(IFptr.LIBFPTR_PARAM_RECORDS_ID, recordsID)
+		self.fptr.endReadRecords()
+
+
+
+		
+
+
 
 
 cashier_service = CashierService()

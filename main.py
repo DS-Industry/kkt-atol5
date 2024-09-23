@@ -1,46 +1,24 @@
 from cashierService import cashier_service
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+
+cashier_service.open_connection()
 
 
+shiftStatus = cashier_service.get_shift_status()
 
-
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///check.db'
-db = SQLAlchemy(app)
-
-
-
-class Check(db.Model):
-    
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(300), nullable=False)
-    bay = db.Column(db.Integer, nullable=False)
-    price = db.Column(db.Integer, nullable=False)
-    quiantity = db.Column(db.Integer, nullable=False)
-    type = db.Column(db.String(55), nullable=False)
-    sum = db.Column(db.Integer, nullable=False)
-    isProcessed = db.Column(db.Integer, nullable=False, default=0)
-    dateCreated = db.Column(db.DateTime, nullable=False, default=datetime.now)
-    dateProccesed = db.Column(db.DateTime, nullable=True)
-    def __repr__(self):
-         return '<Check %r>' % self.id
-
-
-
-
-
-@app.route('/')
-def index():
-    return 'Hello world'
-
-@app.route('/create-check', methods=['POST'])
-def create_check():
+if  shiftStatus["code"] == 200:
+    cashier_service.close_shift()
     
 
-if __name__ == '__main__':
-    app.run(debug=True, port=5050, host='0.0.0.0')
+checkData = {
+    "name": "Test id",
+    "price": 200,
+    "sum": 200,
+    "quiantity": 1,
+    "type": "cash"
+}
+
+result = cashier_service.readLastReciept()
+print(str(result))
 
 
 
