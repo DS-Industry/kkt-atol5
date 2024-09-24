@@ -45,6 +45,7 @@ class CashierService:
 			firmwareVersion = self.fptr.getParamString(IFptr.LIBFPTR_PARAM_UNIT_VERSION)
 			shiftStatus = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_STATE)
 			shiftNumber = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_NUMBER)
+			recordsID = self.fptr.getParamString(IFptr.LIBFPTR_PARAM_RECORDS_ID)
 
 			return {
 				"code": 200,
@@ -53,7 +54,8 @@ class CashierService:
 					"model_name": modelName,
 					"firmwareVersion": firmwareVersion,
 					"shiftStatus": shiftStatus,
-					"shiftNumber": shiftNumber
+					"shiftNumber": shiftNumber,
+					"test": recordsID
 				}
 			}
 
@@ -125,6 +127,7 @@ class CashierService:
 
 	def readNextRecord(self, recordID):
 		self.fptr.setParam(IFptr.LIBFPTR_PARAM_RECORDS_ID, recordID)
+		
 		return self.fptr.readNextRecord()
 		
 	def readLastReciept(self):
@@ -132,7 +135,9 @@ class CashierService:
 		self.fptr.beginReadRecords()
 		recordsID = self.fptr.getParamString(IFptr.LIBFPTR_PARAM_RECORDS_ID)
 	
+	
 		while self.readNextRecord(recordsID) == IFptr.LIBFPTR_OK:
+			print('lol')
 			textLine        = self.fptr.getParamString(IFptr.LIBFPTR_PARAM_TEXT)
 			font            = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_FONT)
 			linespacing     = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_LINESPACING)
@@ -142,7 +147,47 @@ class CashierService:
 		
 		self.fptr.setParam(IFptr.LIBFPTR_PARAM_RECORDS_ID, recordsID)
 		self.fptr.endReadRecords()
+		
+	
+	def checkClose(self):
+		print(self.fptr.getParamBool(IFptr.LIBFPTR_PARAM_DOCUMENT_CLOSED))
+		print(self.fptr.getParamBool(IFptr.LIBFPTR_PARAM_DOCUMENT_PRINTED))
+		self.fptr.setParam(IFptr.LIBFPTR_PARAM_PAYMENT_TYPE, IFptr.LIBFPTR_PT_ELECTRONICALLY)
+		self.fptr.closeReceipt()
 
+		while self.fptr.checkDocumentClosed() < 0:
+			print("tyta")
+			print(self.fptr.errorDescription())
+			continue
+
+		if not self.fptr.getParamBool(IFptr.LIBFPTR_PARAM_DOCUMENT_CLOSED):
+			print('tyty')
+			self.fptr.cancelReceipt()
+			return
+		
+		if not self.fptr.getParamBool(IFptr.LIBFPTR_PARAM_DOCUMENT_PRINTED):
+			print(self.fptr.continuePrint())
+			while self.fptr.continuePrint() < 0:
+				print('Error "%s"', self.fptr.errorDescription())
+				continue
+			
+	def openCheck(self):
+		self.fptr.setParam(IFptr.LIBFPTR_PARAM_RECEIPT_TYPE, IFptr.LIBFPTR_RT_SELL)
+		self.fptr.openReceipt()
+
+	def lastOper(self):
+		self.fptr.getLastDocumentJournal()
+		document = self.fptr.getParamByteArray(IFptr.LIBFPTR_PARAM_TLV_LIST)
+
+		pos = 0
+		while pos < len(document):
+			tag = document[pos] | (document[pos + 1] << 8)
+			length = document[pos + 2] | (document[pos + 3] << 8)
+			pos += 4
+			value = document[pos:pos + length]
+			pos += length
+			print(tag)
+			print(value)
 
 
 		

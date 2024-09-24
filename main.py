@@ -5,22 +5,24 @@ cashier_service.open_connection()
 
 shiftStatus = cashier_service.get_shift_status()
 
-if  shiftStatus["code"] == 200:
-    cashier_service.close_shift()
-    
 
 checkData = {
     "name": "Test id",
-    "price": 200,
-    "sum": 200,
+    "price": 100,
+    "sum": 100,
     "quiantity": 1,
     "type": "cash"
 }
 
+#print(cashier_service.print_check(checkData))
+#cashier_service.readLastReciept()
+#cashier_service.checkClose()
+#print(cashier_service.get_device_params())
 result = cashier_service.readLastReciept()
-print(str(result))
-
-
+print(result)
+cashier_service.lastOper()
+if  shiftStatus["code"] == 200:
+    cashier_service.close_shift()
 
 """"
 cashier_service.open_connection()
