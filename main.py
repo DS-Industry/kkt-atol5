@@ -1,20 +1,3 @@
-<<<<<<< HEAD
-from cashierService import cashier_service
-
-cashier_service.open_connection()
-
-
-shiftStatus = cashier_service.get_shift_status()
-
-
-checkData = {
-    "name": "Test id",
-    "price": 100,
-    "sum": 100,
-    "quiantity": 1,
-    "type": "cash"
-}
-=======
 from flask import Flask, request, jsonify, current_app
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
@@ -30,6 +13,7 @@ def job1():
         checks = Check.query.filter_by(isProcessed=False).all()
         for check in checks:
             check.isProcessed = True
+            #check.dateProcessed = datetime
             db.session.commit()
             print('done')
 
@@ -79,6 +63,14 @@ def get_checks():
 
 @app.route('/create-check', methods=['POST'])
 def create_check():
+    print(request.method)
+    print(request.url)
+    print(request.path)
+    print(request.args)
+    print(request.form)
+    print(request.headers)
+    print(request.data)
+    print(request.remote_addr)
     try:
         # Extract the JSON string from headers
         data_str = request.headers.get('Data')  # Expecting a header called 'Data'
@@ -113,22 +105,22 @@ def create_check():
         # Add and commit the new check to the database
         db.session.add(new_check)
         db.session.commit()
+        print(new_check.id)
 
         return jsonify({"message": "Check created successfully", "check_id": new_check.id}), 201
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
->>>>>>> 67e49873d0b0d7a9c856f9647c9dc18008d42584
 
 #print(cashier_service.print_check(checkData))
 #cashier_service.readLastReciept()
 #cashier_service.checkClose()
 #print(cashier_service.get_device_params())
-result = cashier_service.readLastReciept()
-print(result)
-cashier_service.lastOper()
-if  shiftStatus["code"] == 200:
-    cashier_service.close_shift()
+#result = cashier_service.readLastReciept()
+#print(result)
+#cashier_service.lastOper()
+#if  shiftStatus["code"] == 200:
+#    cashier_service.close_shift()
 
 with app.app_context():
     db.create_all()
@@ -136,7 +128,7 @@ with app.app_context():
 if __name__ == '__main__':
     scheduler.init_app(app)
     scheduler.start()
-    app.run(debug=True)
+    app.run(host='0.0.0.0', debug=True)
 
 """"
 cashier_service.open_connection()
