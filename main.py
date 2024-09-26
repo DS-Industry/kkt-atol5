@@ -71,7 +71,6 @@ def find_actual_check(bay_value):
         check = Check.query.filter_by(isQr=True, bay=bay_value).first()
         if check:
             qr = check.qr
-            print(qr)
             db.session.delete(check)
             db.session.commit()
             return qr
@@ -152,6 +151,7 @@ def create_check():
         db.session.commit()
 
         qr = find_actual_check(new_check.bay)
+        print('send' + qr)
 
         return jsonify({"message": "Check created successfully", "qr": qr}), 201
 
