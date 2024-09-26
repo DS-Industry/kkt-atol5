@@ -3,19 +3,41 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import json
 from flask_apscheduler import APScheduler
+from cashierService import cashier_service
+import time
+
 
 scheduler = APScheduler()
+cashier_service.open_connection()
 
 
-@scheduler.task("interval", id="do_job_1", seconds=3, misfire_grace_time=900)
+@scheduler.task("interval", id="do_job_1", seconds=3, misfire_grace_time=900, max_instances=1)
 def job1():
     with app.app_context():
         checks = Check.query.filter_by(isProcessed=False).all()
         for check in checks:
             check.isProcessed = True
-            #check.dateProcessed = datetime
             db.session.commit()
-            print('done')
+            openStatus = cashier_service.openShift()
+            checkData = {
+                "name": check.name,
+                "price": check.sum,
+                "sum": check.sum,
+                "quiantity": 1,
+                "type": check.type
+            }
+            cashier_service.print_check(checkData)
+            result = cashier_service.readLastReciept()
+            text = result.strip().strip('"')
+            data = json.loads(text)
+            check.qr=data["documentTLV"]["qr"]
+            check.isQr=True
+            db.session.commit()
+            shiftStatus = cashier_service.get_shift_status()
+            if shiftStatus["code"] == 200:
+                res = cashier_service.close_shift()
+                print(res)
+            
 
 
 app = Flask(__name__)
@@ -37,9 +59,38 @@ class Check(db.Model):
     type = db.Column(db.String(50), nullable=False)
     sum = db.Column(db.Float, nullable=False)
     isProcessed = db.Column(db.Boolean, default=False)
+    isQr = db.Column(db.Boolean, default=False)
     dateCreated = db.Column(db.DateTime, default=datetime.utcnow)
     dateProcessed = db.Column(db.DateTime, nullable=True)
+    qr = db.Column(db.String(255), nullable=True)
 
+def find_actual_check(bay_value):
+    while True:
+        time.sleep(5)
+        db.session.rollback()
+        check = Check.query.filter_by(isQr=True, bay=bay_value).first()
+        if check:
+            qr = check.qr
+            print(qr)
+            db.session.delete(check)
+            db.session.commit()
+            return qr
+        
+def create_check(name, sum, type):
+    openStatus = cashier_service.openShift()
+    checkData = {
+       "name": name,
+        "price": sum,
+        "sum": sum,
+        "quiantity": 1,
+        "type": type
+    }
+    cashier_service.print_check(checkData)
+    result = cashier_service.readLastReciept()
+    text = result.strip().strip('"')
+    data = json.loads(text)
+    qr=data["documentTLV"]["qr"]
+    return qr
 
 @app.route('/get-checks', methods=['GET'])
 def get_checks():
@@ -56,21 +107,15 @@ def get_checks():
             'sum': check.sum,
             'isProcessed': check.isProcessed,
             'dateCreated': check.dateCreated,
-            'dateProcessed': check.dateProcessed
+            'dateProcessed': check.dateProcessed,
+            'qr': check.qr,
+            'isQr': check.isQr
         })
     return jsonify(checks_data), 200
 
 
 @app.route('/create-check', methods=['POST'])
 def create_check():
-    print(request.method)
-    print(request.url)
-    print(request.path)
-    print(request.args)
-    print(request.form)
-    print(request.headers)
-    print(request.data)
-    print(request.remote_addr)
     try:
         # Extract the JSON string from headers
         data_str = request.headers.get('Data')  # Expecting a header called 'Data'
@@ -105,9 +150,10 @@ def create_check():
         # Add and commit the new check to the database
         db.session.add(new_check)
         db.session.commit()
-        print(new_check.id)
 
-        return jsonify({"message": "Check created successfully", "check_id": new_check.id}), 201
+        qr = find_actual_check(new_check.bay)
+
+        return jsonify({"message": "Check created successfully", "qr": qr}), 201
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -128,7 +174,26 @@ with app.app_context():
 if __name__ == '__main__':
     scheduler.init_app(app)
     scheduler.start()
-    app.run(host='0.0.0.0', debug=True)
+    app.run(host='0.0.0.0')
+
+    #r = cashier_service.print_check(checkData)
+    #print(r)
+    #result = cashier_service.readLastReciept()
+    #print(result)
+    #cashier_service.info()
+    #cashier_service.openShift()
+    #r = cashier_service.print_check(checkData)
+    #cashier_service.readLastReciept()
+    #print(r)
+    #time.sleep(10)
+    #cashier_service.info()
+    #cashier_service.checkClose()
+    #shiftStatus = cashier_service.get_shift_status()
+    #if shiftStatus["code"] == 200:
+    #    res = cashier_service.close_shift()
+    #    time.sleep(10)
+    #    print(res)
+    
 
 """"
 cashier_service.open_connection()
