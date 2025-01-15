@@ -199,223 +199,217 @@ class CashierService:
 		self.fptr.commitSettings()
 		print(self.fptr.getSettingsStr())
 
+		def open_connection(self):
+			try:
+				self.fptr.open()
+				print(self.fptr.isOpened())
+				if self.fptr.isOpened() == 0:
+					return {"code": 500, "message": "No conection to the printer"}
+				else:
+					self.fptr.enableOfdChannel()
+					return {"code": 200, "message": "Connection successful"}
+			except Exception as e:
+				return {"code": 500, "message": str(e)}
 
-	def open_connection(self):
-		try:
-			self.fptr.open()
-			print(self.fptr.isOpened())
-			if self.fptr.isOpened() == 0:
-				return { "code": 500, "message": "No conection to the printer"}
-			else:
-				self.fptr.enableOfdChannel()
-				return { "code": 200, "message": "Connection successful"}
-		except Exception as e:
-			return {"code": 500, "message": str(e)}
-	
-	def get_device_params(self):
-		try:
-			self.fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_STATUS)
-			self.fptr.queryData()
+		def get_device_params(self):
+			try:
+				self.fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_STATUS)
+				self.fptr.queryData()
 
+				operatorId = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_OPERATOR_ID)
+				modelName = self.fptr.getParamString(IFptr.LIBFPTR_PARAM_MODEL_NAME)
+				firmwareVersion = self.fptr.getParamString(IFptr.LIBFPTR_PARAM_UNIT_VERSION)
+				shiftStatus = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_STATE)
+				shiftNumber = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_NUMBER)
+				recordsID = self.fptr.getParamString(IFptr.LIBFPTR_PARAM_RECORDS_ID)
 
-			operatorId = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_OPERATOR_ID)
-			modelName = self.fptr.getParamString(IFptr.LIBFPTR_PARAM_MODEL_NAME)
-			firmwareVersion = self.fptr.getParamString(IFptr.LIBFPTR_PARAM_UNIT_VERSION)
-			shiftStatus = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_STATE)
-			shiftNumber = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_NUMBER)
-			recordsID = self.fptr.getParamString(IFptr.LIBFPTR_PARAM_RECORDS_ID)
-
-			return {
-				"code": 200,
-				"status": {
-					"operator_id": operatorId,
-					"model_name": modelName,
-					"firmwareVersion": firmwareVersion,
-					"shiftStatus": shiftStatus,
-					"shiftNumber": shiftNumber,
-					"test": recordsID
+				return {
+					"code": 200,
+					"status": {
+						"operator_id": operatorId,
+						"model_name": modelName,
+						"firmwareVersion": firmwareVersion,
+						"shiftStatus": shiftStatus,
+						"shiftNumber": shiftNumber,
+						"test": recordsID
+					}
 				}
-			}
 
-		except Exception as e:
-			return {"code": 500, "message": str(e)}
+			except Exception as e:
+				return {"code": 500, "message": str(e)}
 
-	def get_shift_status(self):
-		try:
+		def get_shift_status(self):
+			try:
+				self.fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_SHIFT_STATE)
+				self.fptr.queryData()
+
+				shiftStatus = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_STATE)
+				status = ShiftSatus(shiftStatus)
+
+				if status == ShiftSatus.OPEN:
+					return {"code": 200}
+				elif status == ShiftSatus.CLOSED:
+					return {"code": 400}
+				elif status == ShiftSatus.EXPIRED:
+					return {"code": 450}
+			except Exception as e:
+				return {"code": 500, "message": str(e)}
+
+		def close_shift(self):
+			try:
+				self.fptr.setParam(IFptr.LIBFPTR_PARAM_REPORT_TYPE, IFptr.LIBFPTR_RT_CLOSE_SHIFT)
+				self.fptr.report()
+				self.fptr.beep()
+				return {"code": 201, "message": "Closed successfully"}
+			except Exception as e:
+				return {"code": 500, "message": str(e)}
+
+		def print_check(self, check_data):
+			try:
+
+				self.fptr.setParam(IFptr.LIBFPTR_PARAM_RECEIPT_TYPE, IFptr.LIBFPTR_RT_SELL)
+				# self.fptr.setParam(IFptr.LIBFPTR_PARAM_RECEIPT_ELECTRONICALLY, True)
+				self.fptr.openReceipt()
+
+				# Add check itmes
+				self.fptr.setParam(IFptr.LIBFPTR_PARAM_COMMODITY_NAME, str(check_data["name"]))
+				self.fptr.setParam(IFptr.LIBFPTR_PARAM_PRICE, str(check_data["price"]))
+				self.fptr.setParam(IFptr.LIBFPTR_PARAM_QUANTITY, str(check_data["quiantity"]))
+				self.fptr.setParam(IFptr.LIBFPTR_PARAM_TAX_TYPE, IFptr.LIBFPTR_TAX_VAT20)
+				self.fptr.setParam(1212, 4)
+				self.fptr.setParam(1214, 4)
+				# payment_type = check_data["type"]
+
+				self.fptr.registration()
+				# payment_value = IFptr.LIBFPTR_PT_CASH if payment_type == 0 else IFptr.LIBFPTR_PT_ELECTRONICALLY
+
+				# Process payment
+				if check_data["type"] == "0":
+					self.fptr.setParam(IFptr.LIBFPTR_PARAM_PAYMENT_TYPE, IFptr.LIBFPTR_PT_CASH)
+				else:
+					self.fptr.setParam(IFptr.LIBFPTR_PARAM_PAYMENT_TYPE, IFptr.LIBFPTR_PT_ELECTRONICALLY)
+
+				self.fptr.setParam(IFptr.LIBFPTR_PARAM_PAYMENT_SUM, int(check_data["sum"]))
+				self.fptr.payment()
+
+				# Register tax
+				self.fptr.setParam(IFptr.LIBFPTR_PARAM_TAX_TYPE, IFptr.LIBFPTR_TAX_VAT20)
+				self.fptr.receiptTax()
+
+				# Register final total
+				self.fptr.receiptTotal()
+
+				# Close check
+				self.fptr.closeReceipt()
+
+				self.fptr.beep()
+
+				return {"code": 201}
+			except Exception as e:
+				return {"code": 500, "message": str(e)}
+
+		def readNextRecord(self, recordID):
+			self.fptr.setParam(IFptr.LIBFPTR_PARAM_RECORDS_ID, recordID)
+
+			return self.fptr.readNextRecord()
+
+		def readLastReciept(self):
+			self.fptr.setParam(IFptr.LIBFPTR_PARAM_FN_DATA_TYPE, IFptr.LIBFPTR_FNDT_LAST_RECEIPT)
+			self.fptr.fnQueryData()
+			checkNumber = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_DOCUMENT_NUMBER)
+			print(checkNumber)
+			json_data = json.dumps({
+				"type": "getFnDocument",
+				"fiscalDocumentNumber": checkNumber,
+				"withRawData": True
+			})
+			self.fptr.setParam(IFptr.LIBFPTR_PARAM_JSON_DATA, json_data)
+			self.fptr.processJson()
+			result = self.fptr.getParamString(IFptr.LIBFPTR_PARAM_JSON_DATA)
+			return result
+
+		def checkClose(self):
+			print(self.fptr.getParamBool(IFptr.LIBFPTR_PARAM_DOCUMENT_CLOSED))
+			print(self.fptr.getParamBool(IFptr.LIBFPTR_PARAM_DOCUMENT_PRINTED))
+			self.fptr.setParam(IFptr.LIBFPTR_PARAM_PAYMENT_TYPE, IFptr.LIBFPTR_PT_ELECTRONICALLY)
+			self.fptr.closeReceipt()
+
+			while self.fptr.checkDocumentClosed() < 0:
+				print("tyta")
+				print(self.fptr.errorDescription())
+				continue
+
+			if not self.fptr.getParamBool(IFptr.LIBFPTR_PARAM_DOCUMENT_CLOSED):
+				print('tyty')
+				self.fptr.cancelReceipt()
+				return
+
+			if not self.fptr.getParamBool(IFptr.LIBFPTR_PARAM_DOCUMENT_PRINTED):
+				print(self.fptr.continuePrint())
+				while self.fptr.continuePrint() < 0:
+					print('Error "%s"', self.fptr.errorDescription())
+					continue
+
+		def openShift(self):
+			try:
+				self.fptr.openShift()
+				while True:
+					time.sleep(2)
+					shift_status = self.get_shift_status()
+					print(shift_status)
+					if shift_status["code"] == 400:
+						self.fptr.openShift()
+					elif shift_status["code"] == 200:
+						return shift_status
+			except Exception as e:
+				return {"code": 500, "message": str(e)}
+
+		def info(self):
 			self.fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_SHIFT_STATE)
 			self.fptr.queryData()
 
-			shiftStatus = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_STATE)
-			status = ShiftSatus(shiftStatus)
+			state = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_STATE)
+			number = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_NUMBER)
+			dateTime = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_DATE_TIME)
+			print(state)
+			print(number)
+			print(dateTime)
 
-			if status == ShiftSatus.OPEN:
-				return { "code": 200 }
-			elif status == ShiftSatus.CLOSED:
-				return { "code": 400 }
-			elif status == ShiftSatus.EXPIRED:
-				return { "code": 450 } 
-		except Exception as e:
-			return {"code": 500, "message": str(e)}
+			self.fptr.setParam(IFptr.LIBFPTR_PARAM_FN_DATA_TYPE, IFptr.LIBFPTR_FNDT_ERRORS)
+			self.fptr.fnQueryData()
 
-	def close_shift(self):
-		try:
-			self.fptr.setParam(IFptr.LIBFPTR_PARAM_REPORT_TYPE, IFptr.LIBFPTR_RT_CLOSE_SHIFT)
-			self.fptr.report()
-			self.fptr.beep()
-			return { "code": 201, "message": "Closed successfully" }
-		except Exception as e:
-			return {"code": 500, "message": str(e)}
-	
-	def print_check(self, check_data):
-		try:
-		
-			self.fptr.setParam(IFptr.LIBFPTR_PARAM_RECEIPT_TYPE, IFptr.LIBFPTR_RT_SELL)
-			#self.fptr.setParam(IFptr.LIBFPTR_PARAM_RECEIPT_ELECTRONICALLY, True)
-			self.fptr.openReceipt()
+			print(self.fptr.getParamDateTime(IFptr.LIBFPTR_PARAM_DATE_TIME))
+			print(self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_NETWORK_ERROR))
+			print(self.fptr.getParamString(IFptr.LIBFPTR_PARAM_NETWORK_ERROR_TEXT))
 
-			#Add check itmes
-			self.fptr.setParam(IFptr.LIBFPTR_PARAM_COMMODITY_NAME, str(check_data["name"]))
-			self.fptr.setParam(IFptr.LIBFPTR_PARAM_PRICE, str(check_data["price"]))
-			self.fptr.setParam(IFptr.LIBFPTR_PARAM_QUANTITY, str(check_data["quiantity"]))	
-			self.fptr.setParam(IFptr.LIBFPTR_PARAM_TAX_TYPE, IFptr.LIBFPTR_TAX_NO)
-			payment_type = check_data["type"]
+			self.fptr.setParam(IFptr.LIBFPTR_PARAM_SETTING_ID, 273)
+			self.fptr.readDeviceSetting()
 
-			self.fptr.registration()
-			payment_value = IFptr.LIBFPTR_PT_CASH if payment_type == "cash" else IFptr.LIBFPTR_PT_ELECTRONICALLY
-		
-			#Process payment
-			self.fptr.setParam(IFptr.LIBFPTR_PARAM_PAYMENT_TYPE, payment_value)
-			self.fptr.setParam(IFptr.LIBFPTR_PARAM_PAYMENT_SUM, int(check_data["sum"]))
-			self.fptr.payment()
+			print(self.fptr.getParamString(IFptr.LIBFPTR_PARAM_SETTING_VALUE))
 
-					
-			#Register tax
-			self.fptr.setParam(IFptr.LIBFPTR_PARAM_TAX_TYPE, IFptr.LIBFPTR_TAX_NO)
-			self.fptr.receiptTax()
-			
-			#Register final total
-			self.fptr.receiptTotal()
+			self.fptr.setParam(IFptr.LIBFPTR_PARAM_SETTING_ID, 274)
+			self.fptr.readDeviceSetting()
 
-			#Close check
-			self.fptr.closeReceipt()
-			
-			
-			self.fptr.beep()
+			print(self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_SETTING_VALUE))
 
-			return { "code": 201}
-		except Exception as e:
-			return {"code": 500, "message": str(e)}	
+			self.fptr.setParam(IFptr.LIBFPTR_PARAM_FN_DATA_TYPE, IFptr.LIBFPTR_FNDT_OFD_EXCHANGE_STATUS)
+			self.fptr.fnQueryData()
 
-	def readNextRecord(self, recordID):
-		self.fptr.setParam(IFptr.LIBFPTR_PARAM_RECORDS_ID, recordID)
-		
-		return self.fptr.readNextRecord()
-		
-	def readLastReciept(self):
-		self.fptr.setParam(IFptr.LIBFPTR_PARAM_FN_DATA_TYPE, IFptr.LIBFPTR_FNDT_LAST_RECEIPT)
-		self.fptr.fnQueryData()
-		checkNumber = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_DOCUMENT_NUMBER)
-		print(checkNumber)
-		json_data = json.dumps({
-			"type" : "getFnDocument", 
-			"fiscalDocumentNumber" : checkNumber,
-			"withRawData" : True
-		})
-		self.fptr.setParam(IFptr.LIBFPTR_PARAM_JSON_DATA, json_data)
-		self.fptr.processJson()
-		result = self.fptr.getParamString(IFptr.LIBFPTR_PARAM_JSON_DATA)
-		return result
-		
-	
-	def checkClose(self):
-		print(self.fptr.getParamBool(IFptr.LIBFPTR_PARAM_DOCUMENT_CLOSED))
-		print(self.fptr.getParamBool(IFptr.LIBFPTR_PARAM_DOCUMENT_PRINTED))
-		self.fptr.setParam(IFptr.LIBFPTR_PARAM_PAYMENT_TYPE, IFptr.LIBFPTR_PT_ELECTRONICALLY)
-		self.fptr.closeReceipt()
+			print(self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_OFD_EXCHANGE_STATUS))
+			print(self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_DOCUMENTS_COUNT))
 
-		while self.fptr.checkDocumentClosed() < 0:
-			print("tyta")
-			print(self.fptr.errorDescription())
-			continue
+		def lastOper(self):
+			self.fptr.getLastDocumentJournal()
+			document = self.fptr.getParamByteArray(IFptr.LIBFPTR_PARAM_TLV_LIST)
 
-		if not self.fptr.getParamBool(IFptr.LIBFPTR_PARAM_DOCUMENT_CLOSED):
-			print('tyty')
-			self.fptr.cancelReceipt()
-			return
-		
-		if not self.fptr.getParamBool(IFptr.LIBFPTR_PARAM_DOCUMENT_PRINTED):
-			print(self.fptr.continuePrint())
-			while self.fptr.continuePrint() < 0:
-				print('Error "%s"', self.fptr.errorDescription())
-				continue
-			
-	def openShift(self):
-		try:
-			self.fptr.openShift()
-			while True:
-				time.sleep(2)
-				shift_status = self.get_shift_status()
-				print(shift_status)
-				if shift_status["code"] == 400:
-					self.fptr.openShift()
-				elif shift_status["code"] == 200:
-					return shift_status
-		except Exception as e:
-			return {"code": 500, "message": str(e)}
-
-	def info(self):
-		self.fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_SHIFT_STATE)
-		self.fptr.queryData()
-
-		state = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_STATE)
-		number = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_NUMBER)
-		dateTime = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_DATE_TIME)
-		print(state)
-		print(number)
-		print(dateTime)
-
-		self.fptr.setParam(IFptr.LIBFPTR_PARAM_FN_DATA_TYPE, IFptr.LIBFPTR_FNDT_ERRORS)
-		self.fptr.fnQueryData()
-
-		print(self.fptr.getParamDateTime(IFptr.LIBFPTR_PARAM_DATE_TIME))
-		print(self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_NETWORK_ERROR))
-		print(self.fptr.getParamString(IFptr.LIBFPTR_PARAM_NETWORK_ERROR_TEXT))
-
-		self.fptr.setParam(IFptr.LIBFPTR_PARAM_SETTING_ID, 273)
-		self.fptr.readDeviceSetting()
-
-		print(self.fptr.getParamString(IFptr.LIBFPTR_PARAM_SETTING_VALUE))
-
-		self.fptr.setParam(IFptr.LIBFPTR_PARAM_SETTING_ID, 274)
-		self.fptr.readDeviceSetting()
-
-		print(self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_SETTING_VALUE))
-
-		self.fptr.setParam(IFptr.LIBFPTR_PARAM_FN_DATA_TYPE, IFptr.LIBFPTR_FNDT_OFD_EXCHANGE_STATUS)
-		self.fptr.fnQueryData()
-
-		print(self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_OFD_EXCHANGE_STATUS))
-		print(self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_DOCUMENTS_COUNT))
-
-
-	def lastOper(self):
-		self.fptr.getLastDocumentJournal()
-		document = self.fptr.getParamByteArray(IFptr.LIBFPTR_PARAM_TLV_LIST)
-
-		pos = 0
-		while pos < len(document):
-			tag = document[pos] | (document[pos + 1] << 8)
-			length = document[pos + 2] | (document[pos + 3] << 8)
-			pos += 4
-			value = document[pos:pos + length]
-			pos += length
-			print(tag)
-			print(value)
-
-
-		
-
-
-
+			pos = 0
+			while pos < len(document):
+				tag = document[pos] | (document[pos + 1] << 8)
+				length = document[pos + 2] | (document[pos + 3] << 8)
+				pos += 4
+				value = document[pos:pos + length]
+				pos += length
+				print(tag)
+				print(value)
 
 cashier_service = CashierService()
