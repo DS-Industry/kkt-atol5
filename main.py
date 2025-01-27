@@ -140,7 +140,7 @@ def create_check():
             name = 'Робот ' + bay
         elif nameType == '2':
             name = 'Пост ' + bay
-        elif nameType == '0':
+        else:
             name = 'Пылесос ' + bay
 
         # Validate required fields
