@@ -15,6 +15,9 @@ log_handler = RotatingFileHandler(
     maxBytes=1000000,
     backupCount=5
 )
+log_handler.setLevel(logging.INFO)
+formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+log_handler.setFormatter(formatter)
 
 @scheduler.task("interval", id="do_job_1", seconds=3, misfire_grace_time=900, max_instances=1)
 def job1():
@@ -53,6 +56,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///checks.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SCHEDULER_API_ENABLED'] = True
 app.logger.addHandler(log_handler)
+app.logger.setLevel(logging.INFO)
 
 db = SQLAlchemy(app)
 
@@ -178,8 +182,9 @@ def create_check():
 with app.app_context():
     db.create_all()
 
+app.logger.info("The program has started!")
+
 if __name__ == '__main__':
     scheduler.init_app(app)
     scheduler.start()
     app.run(host='0.0.0.0')
-    app.logger.info("The program has started!")
