@@ -5,9 +5,16 @@ import json
 from flask_apscheduler import APScheduler
 from cashierService import cashier_service
 import time
+import logging
+from logging.handlers import RotatingFileHandler
 
 scheduler = APScheduler()
 cashier_service.open_connection()
+log_handler = RotatingFileHandler(
+    "atol.log",
+    maxBytes=1000000,
+    backupCount=5
+)
 
 @scheduler.task("interval", id="do_job_1", seconds=3, misfire_grace_time=900, max_instances=1)
 def job1():
@@ -45,6 +52,7 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///checks.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SCHEDULER_API_ENABLED'] = True
+app.logger.addHandler(log_handler)
 
 db = SQLAlchemy(app)
 
@@ -63,11 +71,11 @@ class Check(db.Model):
     qr = db.Column(db.String(255), nullable=True)
 
 
-def find_actual_check(bay_value):
+def find_actual_check(name_value):
     while True:
         time.sleep(5)
         db.session.rollback()
-        check = Check.query.filter_by(isQr=True, bay=bay_value).first()
+        check = Check.query.filter_by(isQr=True, name=name_value).first()
         if check:
             qr = check.qr
             db.session.delete(check)
@@ -159,7 +167,7 @@ def create_check():
         db.session.add(new_check)
         db.session.commit()
 
-        qr = find_actual_check(new_check.bay)
+        qr = find_actual_check(new_check.name)
         print('send' + qr)
 
         return jsonify({"message": "Check created successfully", "qr": qr}), 201
@@ -174,3 +182,4 @@ if __name__ == '__main__':
     scheduler.init_app(app)
     scheduler.start()
     app.run(host='0.0.0.0')
+    app.logger.info("The program has started!")
