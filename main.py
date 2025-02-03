@@ -41,6 +41,7 @@ def job1():
                 "type": check.type
             }
             cashier_service.print_check(checkData)
+            app.logger.info(f"Print check: id={check.id}")
             result = cashier_service.readLastReciept()
             text = result.strip().strip('"')
             data = json.loads(text)
@@ -129,7 +130,6 @@ def get_checks():
 @app.route('/create-check', methods=['POST'])
 def create_check():
     try:
-        app.logger.info(f"Received request headers: {request.headers}")
         # Extract the JSON string from headers
         data_str = request.headers.get('Data')  # Expecting a header called 'Data'
 
