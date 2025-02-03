@@ -129,16 +129,19 @@ def get_checks():
 @app.route('/create-check', methods=['POST'])
 def create_check():
     try:
+        app.logger.info(f"Received request headers: {request.headers}")
         # Extract the JSON string from headers
         data_str = request.headers.get('Data')  # Expecting a header called 'Data'
 
         if not data_str:
+            app.logger.warning("No data provided in headers")
             return jsonify({"error": "No data provided in headers"}), 400
 
         # Parse the JSON string to a Python object
         try:
             data = json.loads(data_str)
         except json.JSONDecodeError:
+            app.logger.error(f"Invalid JSON format: {data_str}")
             return jsonify({"error": "Invalid JSON format"}), 400
 
         # Extract required fields
@@ -157,8 +160,10 @@ def create_check():
 
         # Validate required fields
         if not all([name, bay, sum_value, type_value]):
+            app.logger.warning(f"Missing required fields: {data}")
             return jsonify({"error": "Missing required fields"}), 400
 
+        app.logger.info(f"Creating check: Name={name}, Bay={bay}, Sum={sum_value}, Type={type_value}")
         # Create a new check object
         new_check = Check(
             name=name,
@@ -172,11 +177,12 @@ def create_check():
         db.session.commit()
 
         qr = find_actual_check(new_check.name)
-        print('send' + qr)
 
+        app.logger.info(f"QR code generated: {qr} for check {new_check.id}")
         return jsonify({"message": "Check created successfully", "qr": qr}), 201
 
     except Exception as e:
+        app.logger.error(f"Error processing check: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 with app.app_context():
