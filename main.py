@@ -186,6 +186,7 @@ def create_check():
         return jsonify({"error": str(e)}), 500
 
 with app.app_context():
+    db.drop_all()
     db.create_all()
 
 app.logger.info("The program has started!")
