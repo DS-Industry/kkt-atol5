@@ -264,12 +264,18 @@ class CashierService:
 		except Exception as e:
 			return {"code": 500, "message": str(e)}
 
-	def print_check(self, check_data):
+	def print_check(self, check_data, app):
 		try:
-
+			app.logger.info("The beginning of creating a receipt at the checkout")
 			self.fptr.setParam(IFptr.LIBFPTR_PARAM_RECEIPT_TYPE, IFptr.LIBFPTR_RT_SELL)
 			# self.fptr.setParam(IFptr.LIBFPTR_PARAM_RECEIPT_ELECTRONICALLY, True)
-			self.fptr.openReceipt()
+			result = self.fptr.openReceipt()
+			if result != 0:
+				error_code = self.fptr.errorCode()
+				error_description = self.fptr.errorDescription()
+				app.logger.error(f"Error open: {error_code}, message: {error_description}")
+				self.fptr.resetError()
+			app.logger.info("Check open")
 
 			# Add check itmes
 			self.fptr.setParam(IFptr.LIBFPTR_PARAM_COMMODITY_NAME, str(check_data["name"]))
@@ -280,7 +286,13 @@ class CashierService:
 			self.fptr.setParam(1214, 4)
 			# payment_type = check_data["type"]
 
-			self.fptr.registration()
+			result = self.fptr.registration()
+			if result != 0:
+				error_code = self.fptr.errorCode()
+				error_description = self.fptr.errorDescription()
+				app.logger.error(f"Error registration: {error_code}, message: {error_description}")
+				self.fptr.resetError()
+			app.logger.info("Check registration")
 			# payment_value = IFptr.LIBFPTR_PT_CASH if payment_type == 0 else IFptr.LIBFPTR_PT_ELECTRONICALLY
 
 			# Process payment
@@ -290,17 +302,41 @@ class CashierService:
 				self.fptr.setParam(IFptr.LIBFPTR_PARAM_PAYMENT_TYPE, IFptr.LIBFPTR_PT_ELECTRONICALLY)
 
 			self.fptr.setParam(IFptr.LIBFPTR_PARAM_PAYMENT_SUM, int(check_data["sum"]))
-			self.fptr.payment()
+			result = self.fptr.payment()
+			if result != 0:
+				error_code = self.fptr.errorCode()
+				error_description = self.fptr.errorDescription()
+				app.logger.error(f"Error payment: {error_code}, message: {error_description}")
+				self.fptr.resetError()
+			app.logger.info("Check payment")
 
 			# Register tax
 			self.fptr.setParam(IFptr.LIBFPTR_PARAM_TAX_TYPE, IFptr.LIBFPTR_TAX_VAT20)
-			self.fptr.receiptTax()
+			result = self.fptr.receiptTax()
+			if result != 0:
+				error_code = self.fptr.errorCode()
+				error_description = self.fptr.errorDescription()
+				app.logger.error(f"Error receiptTax: {error_code}, message: {error_description}")
+				self.fptr.resetError()
+			app.logger.info("Check receiptTax")
 
 			# Register final total
-			self.fptr.receiptTotal()
+			result = self.fptr.receiptTotal()
+			if result != 0:
+				error_code = self.fptr.errorCode()
+				error_description = self.fptr.errorDescription()
+				app.logger.error(f"Error receiptTotal: {error_code}, message: {error_description}")
+				self.fptr.resetError()
+			app.logger.info("Check receiptTotal")
 
 			# Close check
-			self.fptr.closeReceipt()
+			result = self.fptr.closeReceipt()
+			if result != 0:
+				error_code = self.fptr.errorCode()
+				error_description = self.fptr.errorDescription()
+				app.logger.error(f"Error closeReceipt: {error_code}, message: {error_description}")
+				self.fptr.resetError()
+			app.logger.info("Check closeReceipt")
 
 			self.fptr.beep()
 

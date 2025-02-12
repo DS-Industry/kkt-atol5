@@ -40,7 +40,7 @@ def job1():
                 "quiantity": 1,
                 "type": check.type
             }
-            cashier_service.print_check(checkData)
+            cashier_service.print_check(checkData, app)
             app.logger.info(f"Print check: id={check.id}")
             result = cashier_service.readLastReciept()
             text = result.strip().strip('"')
@@ -97,7 +97,7 @@ def create_check(name, sum, type):
         "quiantity": 1,
         "type": type
     }
-    cashier_service.print_check(checkData)
+    cashier_service.print_check(checkData, app)
     result = cashier_service.readLastReciept()
     text = result.strip().strip('"')
     data = json.loads(text)
