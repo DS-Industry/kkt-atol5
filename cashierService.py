@@ -281,7 +281,7 @@ class CashierService:
 			self.fptr.setParam(IFptr.LIBFPTR_PARAM_COMMODITY_NAME, str(check_data["name"]))
 			self.fptr.setParam(IFptr.LIBFPTR_PARAM_PRICE, str(check_data["price"]))
 			self.fptr.setParam(IFptr.LIBFPTR_PARAM_QUANTITY, str(check_data["quiantity"]))
-			self.fptr.setParam(IFptr.LIBFPTR_PARAM_TAX_TYPE, IFptr.LIBFPTR_TAX_VAT20)
+			self.fptr.setParam(IFptr.LIBFPTR_PARAM_TAX_TYPE, IFptr.LIBFPTR_TAX_NO)
 			self.fptr.setParam(1212, 4)
 			self.fptr.setParam(1214, 4)
 			# payment_type = check_data["type"]
@@ -311,7 +311,7 @@ class CashierService:
 			app.logger.info("Check payment")
 
 			# Register tax
-			self.fptr.setParam(IFptr.LIBFPTR_PARAM_TAX_TYPE, IFptr.LIBFPTR_TAX_VAT20)
+			self.fptr.setParam(IFptr.LIBFPTR_PARAM_TAX_TYPE, IFptr.LIBFPTR_TAX_NO)
 			result = self.fptr.receiptTax()
 			if result != 0:
 				error_code = self.fptr.errorCode()
