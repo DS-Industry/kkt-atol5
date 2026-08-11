@@ -1,0 +1,40 @@
+{% extends "admin/base.html" %}
+{% block title %}Checks{% endblock %}
+{% block content %}
+  <h1>Checks / Чеки</h1>
+  <p class="lead">Recent queue rows (list only). No retry — unsafe without anti-double-print rules.</p>
+
+  <div class="actions">
+    <a class="btn" href="{{ url_for('admin_checks') }}">Refresh</a>
+    <a class="btn" href="{{ url_for('get_checks') }}">/get-checks JSON</a>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>id</th>
+        <th>bay</th>
+        <th>sum</th>
+        <th>status</th>
+        <th>QR</th>
+        <th>layer</th>
+        <th>error</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in checks %}
+        <tr>
+          <td>{{ c.id }}</td>
+          <td>{{ c.bay }}</td>
+          <td>{{ c.sum }}</td>
+          <td>{{ c.status }}</td>
+          <td>{% if c.isQr %}yes{% else %}no{% endif %}</td>
+          <td>{% if c.layer %}<span class="layer-{{ c.layer }}">{{ c.layer }}</span>{% else %}—{% endif %}</td>
+          <td>{{ c.error_message or c.error_description or '—' }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7">No checks</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

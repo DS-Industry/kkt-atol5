@@ -1,0 +1,70 @@
+{% extends "admin/base.html" %}
+{% block title %}Status{% endblock %}
+{% block content %}
+  <h1>Status / Статус</h1>
+  <p class="lead">Connection, shift, fault layer, and queue — refresh or reconnect via CashierService only.</p>
+
+  <dl class="kv">
+    <dt>Connection</dt>
+    <dd>{% if opened %}Connected{% else %}Disconnected{% endif %}
+      ({{ connection.connection_mode|upper }}{% if connection.connection_mode == 'tcp' %} → {{ connection.kkt_ip }}:{{ connection.kkt_tcp_port }}{% endif %})
+    </dd>
+    <dt>Shift</dt>
+    <dd>{{ shift_label }}</dd>
+    <dt>Fault layer</dt>
+    <dd>
+      {% if layer %}
+        <span class="layer-{{ layer }}">{{ layer }}</span>
+        — {{ layer_hint }}
+      {% else %}
+        —
+      {% endif %}
+    </dd>
+    <dt>Last failure</dt>
+    <dd>
+      {% if last_failure %}
+        {{ last_failure.message or last_failure.error_description or '—' }}
+        {% if last_failure.error_code is not none %} (code {{ last_failure.error_code }}){% endif %}
+      {% else %}
+        —
+      {% endif %}
+    </dd>
+    <dt>Queue today</dt>
+    <dd>
+      pending {{ queue.pending }} · printing {{ queue.printing }} ·
+      failed {{ queue.failed }} · done {{ queue.done }}
+    </dd>
+    <dt>Device busy</dt>
+    <dd>{% if connection.busy %}yes — wait before reconnect{% else %}no{% endif %}</dd>
+  </dl>
+
+  <div class="actions">
+    <form method="post" action="{{ url_for('admin_reconnect') }}">
+      <button type="submit" class="primary">Reconnect</button>
+    </form>
+    <form method="post" action="{{ url_for('admin_diagnostics') }}">
+      <button type="submit">Run diagnostics</button>
+    </form>
+    <a class="btn" href="{{ url_for('admin_status') }}">Refresh</a>
+    <a class="btn" href="{{ url_for('health') }}">/health JSON</a>
+  </div>
+
+  {% if diagnostics %}
+    <h2>Last diagnostics</h2>
+    <p>{{ diagnostics.message }}
+      {% if diagnostics.where %} · where={{ diagnostics.where }}{% endif %}
+    </p>
+    <ul>
+      {% for step in diagnostics.steps %}
+        <li>
+          {{ step.step }}. {{ step.name }} —
+          {% if step.pass %}OK{% else %}FAIL ({{ step.layer }}){% endif %}
+          {% if step.message %} — {{ step.message }}{% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+    {% if diagnostics.what_to_do_next %}
+      <p class="hint">{{ diagnostics.what_to_do_next }}</p>
+    {% endif %}
+  {% endif %}
+{% endblock %}

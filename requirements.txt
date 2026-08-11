@@ -1,0 +1,8 @@
+# Runtime (Orange Pi / Flask service)
+Flask>=3.0,<3.2
+Flask-SQLAlchemy>=3.0,<3.2
+Flask-APScheduler>=1.13,<1.14
+SQLAlchemy>=2.0,<2.1
+
+# Tests (no hardware / no native libfptr10 required)
+pytest>=8.0,<9

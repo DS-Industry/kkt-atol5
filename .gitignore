@@ -1,0 +1,42 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Secrets / local env
+.env
+.env.*
+
+# Runtime data (SQLite, local config overlay)
+instance/
+*.db
+
+# Logs
+*.log
+atol.log
+
+# Tests / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Nelson mission state (local)
+.nelson/

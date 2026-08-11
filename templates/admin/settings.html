@@ -1,0 +1,62 @@
+{% extends "admin/base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+  <h1>Settings / Настройки</h1>
+  <p class="lead">Persist to <code>instance/config.json</code>. Driver TCP target is the only IP field — not OFD host or KKT Ethernet.</p>
+
+  {% if device_busy %}
+    <div class="flash warn">Device lock busy (fiscal op in progress). Prefer Save only; reconnect when idle.</div>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('admin_settings') }}">
+    <label for="connection_mode">Connection mode / Режим</label>
+    <select id="connection_mode" name="connection_mode">
+      <option value="usb" {% if cfg.connection_mode == 'usb' %}selected{% endif %}>USB</option>
+      <option value="tcp" {% if cfg.connection_mode == 'tcp' %}selected{% endif %}>TCP</option>
+    </select>
+
+    <label for="kkt_ip">Driver TCP target (Orange Pi → KKT) / IP драйвера</label>
+    <input id="kkt_ip" name="kkt_ip" type="text" value="{{ cfg.kkt_ip }}"
+           placeholder="192.168.x.x" autocomplete="off">
+    <p class="hint">
+      How the Orange Pi reaches the KKT over the driver TCP port.
+      Not the OFD host and not KKT Ethernet params (71–74). Enabled for TCP mode.
+    </p>
+
+    <label for="kkt_tcp_port">KKT TCP port (default 5555)</label>
+    <input id="kkt_tcp_port" name="kkt_tcp_port" type="number" min="1" max="65535"
+           value="{{ cfg.kkt_tcp_port }}">
+
+    <label for="library_path">Library path</label>
+    <input id="library_path" name="library_path" type="text" value="{{ cfg.library_path }}">
+
+    <label for="qr_wait_timeout_sec">QR wait timeout (s)</label>
+    <input id="qr_wait_timeout_sec" name="qr_wait_timeout_sec" type="number" min="1"
+           value="{{ cfg.qr_wait_timeout_sec }}">
+
+    <label for="shift_open_timeout_sec">Shift open timeout (s)</label>
+    <input id="shift_open_timeout_sec" name="shift_open_timeout_sec" type="number" min="1"
+           value="{{ cfg.shift_open_timeout_sec }}">
+
+    <label for="http_host">HTTP listen host</label>
+    <input id="http_host" name="http_host" type="text" value="{{ cfg.http_host }}">
+    <p class="hint">Restart process after changing HTTP host/port for bind to take effect.</p>
+
+    <label for="http_port">HTTP listen port</label>
+    <input id="http_port" name="http_port" type="number" min="1" max="65535"
+           value="{{ cfg.http_port }}">
+
+    <label for="log_path">Log path</label>
+    <input id="log_path" name="log_path" type="text" value="{{ cfg.log_path }}">
+
+    <label for="max_log_lines">Max log lines (Screen C)</label>
+    <input id="max_log_lines" name="max_log_lines" type="number" min="1"
+           value="{{ cfg.max_log_lines }}">
+
+    <div class="actions">
+      <button type="submit" name="action" value="save">Save</button>
+      <button type="submit" name="action" value="save_reconnect" class="primary">Save &amp; reconnect</button>
+      <button type="submit" name="action" value="reset">Reset to defaults</button>
+    </div>
+  </form>
+{% endblock %}

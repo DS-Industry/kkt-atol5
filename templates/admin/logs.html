@@ -1,0 +1,23 @@
+{% extends "admin/base.html" %}
+{% block title %}Logs{% endblock %}
+{% block content %}
+  <h1>Logs / Журнал</h1>
+  <p class="lead">Tail of <code>{{ log_path }}</code> (last {{ max_lines }} lines).</p>
+
+  <form method="get" action="{{ url_for('admin_logs') }}" class="actions">
+    <label for="level" style="margin:0">Filter</label>
+    <select id="level" name="level" style="width:auto;max-width:10rem">
+      <option value="" {% if not level %}selected{% endif %}>All</option>
+      <option value="ERROR" {% if level == 'ERROR' %}selected{% endif %}>ERROR</option>
+      <option value="INFO" {% if level == 'INFO' %}selected{% endif %}>INFO</option>
+    </select>
+    <button type="submit">Apply</button>
+    <a class="btn" href="{{ url_for('admin_logs', level=level) }}">Refresh</a>
+  </form>
+
+  {% if log_error %}
+    <div class="flash err">{{ log_error }}</div>
+  {% endif %}
+
+  <pre class="log">{{ log_text }}</pre>
+{% endblock %}

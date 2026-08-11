@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Admin{% endblock %} — KKT ATOL</title>
+  <style>
+    :root {
+      --bg: #f2f0eb;
+      --ink: #1a1a1a;
+      --muted: #5c5c5c;
+      --line: #c8c4ba;
+      --accent: #0b5fff;
+      --warn: #8a4b00;
+      --ok: #0d6b3c;
+      --bad: #9b1c1c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+      background: linear-gradient(160deg, #efece4 0%, #dfe8f2 100%);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1.25rem;
+      align-items: baseline;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,0.55);
+    }
+    header .brand { font-weight: 700; letter-spacing: 0.02em; }
+    nav a {
+      color: var(--accent);
+      text-decoration: none;
+      margin-right: 0.85rem;
+      font-size: 0.95rem;
+    }
+    nav a[aria-current="page"] { font-weight: 700; text-decoration: underline; }
+    main { padding: 1.25rem; max-width: 52rem; }
+    h1 { font-size: 1.35rem; margin: 0 0 0.75rem; }
+    p.lead { color: var(--muted); margin: 0 0 1.25rem; max-width: 40rem; }
+    .note {
+      font-size: 0.85rem;
+      color: var(--warn);
+      margin: 0 0 1rem;
+      padding: 0.5rem 0.75rem;
+      border-left: 3px solid var(--warn);
+      background: rgba(255,255,255,0.45);
+    }
+    .flash {
+      padding: 0.65rem 0.85rem;
+      margin-bottom: 1rem;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+    .flash.ok { border-color: var(--ok); color: var(--ok); }
+    .flash.err { border-color: var(--bad); color: var(--bad); }
+    .flash.warn { border-color: var(--warn); color: var(--warn); }
+    dl.kv { display: grid; grid-template-columns: 11rem 1fr; gap: 0.35rem 0.75rem; margin: 0 0 1.25rem; }
+    dl.kv dt { color: var(--muted); }
+    dl.kv dd { margin: 0; font-weight: 600; }
+    .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0; }
+    button, .btn {
+      appearance: none;
+      border: 1px solid var(--ink);
+      background: #fff;
+      color: var(--ink);
+      padding: 0.45rem 0.85rem;
+      font: inherit;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+    button.primary, .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    label { display: block; margin: 0.75rem 0 0.25rem; font-size: 0.9rem; }
+    input, select {
+      width: 100%;
+      max-width: 28rem;
+      padding: 0.4rem 0.5rem;
+      font: inherit;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+    .hint { font-size: 0.8rem; color: var(--muted); margin: 0.2rem 0 0; max-width: 32rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; background: rgba(255,255,255,0.6); }
+    th, td { text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; }
+    pre.log {
+      background: #1e1e1e;
+      color: #e8e8e8;
+      padding: 0.75rem;
+      overflow: auto;
+      max-height: 70vh;
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
+    .layer-APP { color: var(--bad); }
+    .layer-LINK { color: var(--warn); }
+    .layer-KKT { color: #004a99; }
+    .layer-FN_OFD { color: #6b2d8b; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="brand">KKT ATOL Admin</span>
+    <nav>
+      <a href="{{ url_for('admin_status') }}" {% if active == 'status' %}aria-current="page"{% endif %}>Status</a>
+      <a href="{{ url_for('admin_settings') }}" {% if active == 'settings' %}aria-current="page"{% endif %}>Settings</a>
+      <a href="{{ url_for('admin_logs') }}" {% if active == 'logs' %}aria-current="page"{% endif %}>Logs</a>
+      <a href="{{ url_for('admin_checks') }}" {% if active == 'checks' %}aria-current="page"{% endif %}>Checks</a>
+    </nav>
+  </header>
+  <main>
+    {# MVP: /admin* is unauthenticated — trusted LAN only. Do not expose beyond site network. #}
+    <p class="note">⚠ Admin UI is unauthenticated (LAN trust MVP). Do not expose outside the site network. Auth/PIN is Phase D+.</p>
+    {% if flash %}
+      <div class="flash {{ flash.kind }}">{{ flash.message }}</div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
