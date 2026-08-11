@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "flask-api",
+  "owner": "markus41",
+  "repo": "claude",
+  "path": ".claude/skills/flask-api",
+  "branch": "main",
+  "sha": "19c702b42866103203d3ca26aa693d0cb75b671b",
+  "source": "manual"
+}

@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "pytest",
+  "owner": "terminalskills",
+  "repo": "skills",
+  "path": "skills/pytest",
+  "branch": "main",
+  "sha": "4543f1b56b97bff859604af71744c1a9511d49d7",
+  "source": "manual"
+}
