@@ -160,7 +160,7 @@ Simple local web UI (same Flask app or static pages under `/admin`), usable on p
 | Library path | Default `/usr/lib/` |
 | QR wait timeout (s) | Default 180 |
 | Shift open timeout (s) | Default 120 |
-| HTTP listen host/port | Advanced; default `0.0.0.0:5000` |
+| HTTP listen host/port | Advanced; default `0.0.0.0:5050` |
 | Buttons | Save; Save & reconnect; Reset to defaults |
 
 #### Screen C — Logs

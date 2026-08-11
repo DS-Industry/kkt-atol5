@@ -20,7 +20,7 @@ date at the bottom.
 - [ ] If USB flaky historically: `usbcore.autosuspend=-1` in `/boot/orangepiEnv.txt` and reboot ([issues.md](issues/issues.md))
 - [ ] Stable PSU (field notes: voltage sag → multi-minute ops / timeouts)
 
-Default HTTP: `http://<orangepi>:5000` (from `instance/config.json` / conf defaults).
+Default HTTP: `http://<orangepi>:5050` (from `instance/config.json` / conf defaults).
 
 ---
 
@@ -41,8 +41,8 @@ Connection mode is set in Admin → Settings (`usb` | `tcp`) or `instance/config
 - [ ] `/health` and `/admin/diagnostics` show open connection
 
 ```bash
-curl -s http://127.0.0.1:5000/health | python3 -m json.tool
-curl -s http://127.0.0.1:5000/admin/diagnostics | python3 -m json.tool
+curl -s http://127.0.0.1:5050/health | python3 -m json.tool
+curl -s http://127.0.0.1:5050/admin/diagnostics | python3 -m json.tool
 ```
 
 ---

@@ -25,9 +25,9 @@ DEFAULTS: dict[str, Any] = {
     "kkt_ip": "",
     "kkt_tcp_port": 5555,
     "library_path": "/usr/lib/",
-    # FSD §5.4 / Phase C: HTTP listen default 0.0.0.0:5000
+    # HTTP listen default 0.0.0.0:5050 (avoid macOS AirPlay on 5000)
     "http_host": "0.0.0.0",
-    "http_port": 5000,
+    "http_port": 5050,
     "qr_wait_timeout_sec": 180,
     "shift_open_timeout_sec": 120,
     "shift_close_timeout_sec": 120,

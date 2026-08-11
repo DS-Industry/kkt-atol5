@@ -76,17 +76,17 @@ not a substitute.
 Example:
 
 ```bash
-curl -s http://127.0.0.1:5000/health | python3 -m json.tool
-curl -s http://127.0.0.1:5000/admin/diagnostics | python3 -m json.tool
+curl -s http://127.0.0.1:5050/health | python3 -m json.tool
+curl -s http://127.0.0.1:5050/admin/diagnostics | python3 -m json.tool
 ```
 
 Failed queue rows include `layer` (`APP`|`LINK`|`KKT`|`FN_OFD`|…) for filtering:
 
 ```bash
-curl -s 'http://127.0.0.1:5000/get-checks?layer=LINK'
+curl -s 'http://127.0.0.1:5050/get-checks?layer=LINK'
 ```
 
-Admin GUI (Phase C): open `http://<orangepi>:5000/admin` on the LAN.
+Admin GUI (Phase C): open `http://<orangepi>:5050/admin` on the LAN.
 
 | Screen | Path | Purpose |
 |--------|------|---------|
@@ -101,7 +101,7 @@ site network. Auth/PIN is not in Phase C.
 Persistent config: `instance/config.json` (defaults if missing). Driver TCP target is the
 only IP in Settings — never conflate with OFD host or KKT Ethernet (params 71–74).
 
-HTTP listen default in config: `0.0.0.0:5000` (FSD). Process restart required after changing
+HTTP listen default in config: `0.0.0.0:5050`. Process restart required after changing
 HTTP host/port.
 
 ---

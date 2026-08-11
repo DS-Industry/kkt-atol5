@@ -40,7 +40,7 @@ def test_load_missing_file_returns_defaults(isolated_config):
     assert cfg["kkt_ip"] == ""
     assert cfg["kkt_tcp_port"] == 5555
     assert cfg["http_host"] == "0.0.0.0"
-    assert cfg["http_port"] == 5000
+    assert cfg["http_port"] == 5050
     assert cfg["library_path"] == "/usr/lib/"
     assert cfg["qr_wait_timeout_sec"] == 180
     assert cfg["shift_open_timeout_sec"] == 120

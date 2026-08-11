@@ -9,7 +9,7 @@
 # - Single process only — do not use multi-worker Gunicorn; APScheduler job1 and
 #   the USB KKT must not race across workers (see docs/ops-runbook.md §1).
 # - HTTP host/port come from instance/config.json (defaults http_host/http_port
-#   in conf.py, typically 0.0.0.0:5000). Changing bind requires a service restart.
+#   in conf.py, typically 0.0.0.0:5050). Changing bind requires a service restart.
 # - libfptr10 / ATOL driver must be installed on the host (LIBRARY_PATH, often /usr/lib/).
 # - Set User= to a non-root account that can access the USB device and write instance/.
 
