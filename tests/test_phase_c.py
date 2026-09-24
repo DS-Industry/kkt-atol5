@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import patch
 
 import pytest
@@ -40,7 +41,7 @@ def test_load_missing_file_returns_defaults(isolated_config):
     assert cfg["kkt_ip"] == ""
     assert cfg["kkt_tcp_port"] == 5555
     assert cfg["http_host"] == "0.0.0.0"
-    assert cfg["http_port"] == 5050
+    assert cfg["http_port"] == 5000
     assert cfg["library_path"] == "/usr/lib/"
     assert cfg["qr_wait_timeout_sec"] == 180
     assert cfg["shift_open_timeout_sec"] == 120
@@ -56,7 +57,7 @@ def test_save_load_roundtrip_mode_ip_port_and_fcfg02(isolated_config):
         "kkt_tcp_port": 7777,
         "library_path": "/opt/atol/",
         "http_host": "127.0.0.1",
-        "http_port": 5050,
+        "http_port": 5051,
         "qr_wait_timeout_sec": 90,
         "shift_open_timeout_sec": 60,
         "log_path": "custom-atol.log",
@@ -74,6 +75,17 @@ def test_save_load_roundtrip_mode_ip_port_and_fcfg02(isolated_config):
     assert conf.CONNECTION_MODE == "tcp"
     assert conf.KKT_IP == "192.168.10.20"
     assert conf.KKT_TCP_PORT == 7777
+
+
+def test_load_migrates_legacy_http_port_5050(isolated_config):
+    isolated_config.write_text(
+        json.dumps({"http_port": 5050}), encoding="utf-8"
+    )
+
+    loaded = conf.load_config(isolated_config)
+
+    assert loaded["http_port"] == 5000
+    assert conf.HTTP_PORT == 5000
 
 
 def test_validate_settings_rejects_invalid_payloads(isolated_config):

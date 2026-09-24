@@ -11,6 +11,41 @@
     </dd>
     <dt>Shift</dt>
     <dd>{{ shift_label }}</dd>
+    <dt>Кассир на чеке</dt>
+    <dd>
+      {% if not send_cashier_to_kkt %}
+        Передача программой отключена: ФИО и ИНН не передаются.
+        Настроенное имя: {{ cashier_name or 'не задано' }}.
+        {% if automatic_mode %}
+          Перед чеком передаётся пустой тег 1021 для подавления оператора ККТ.
+        {% endif %}
+      {% else %}
+        {{ cashier_name or 'Не задан в программе — используется текущий оператор ККТ' }}
+      {% endif %}
+    </dd>
+    <dt>Налоговая ставка</dt>
+    <dd>{{ tax_type_label }}</dd>
+    <dt>Автоматические устройства</dt>
+    <dd>
+      {% if automatic_mode %}
+        Режим программы включён;
+        {% if send_cashier_to_kkt %}
+          Передача кассира при этом всё ещё включена.
+        {% endif %}
+        {% if machine_number %}
+          единый номер для всех чеков: <code>{{ machine_number }}</code> (тег 1036).
+        {% elif machine_numbers %}
+          настроено постов: {{ machine_numbers|length }}.
+          <ul>
+            {% for bay, number in machine_numbers|dictsort %}
+              <li><code>{{ bay }}</code> → <code>{{ number }}</code> (тег 1036)</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% else %}
+        Выключено — программа не передаёт тег 1036.
+      {% endif %}
+    </dd>
     <dt>Fault layer</dt>
     <dd>
       {% if layer %}

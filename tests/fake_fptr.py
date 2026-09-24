@@ -15,8 +15,13 @@ def build_fake_fptr_class(real_cls: type) -> type:
             self._error_desc = ""
             self._opened = 1
             self._params: Dict[Any, Any] = {}
+            self._operation_params: Dict[Any, Any] = {}
             self.calls: List[str] = []
             self.set_param_calls: List[Tuple[Any, ...]] = []
+            self.operator_login_params: List[Dict[Any, Any]] = []
+            self.open_receipt_params: List[Dict[Any, Any]] = []
+            self.registration_params: List[Dict[Any, Any]] = []
+            self.receipt_tax_params: List[Dict[Any, Any]] = []
             # Methods that should fail on next call (nonzero return + errorCode)
             self._fail_once: Set[str] = set()
             self._fail_always: Set[str] = set()
@@ -97,7 +102,14 @@ def build_fake_fptr_class(real_cls: type) -> type:
             self.set_param_calls.append(args)
             if len(args) >= 2:
                 self._params[args[0]] = args[1]
+                self._operation_params[args[0]] = args[1]
             return None
+
+        def _record_operation(self, name: str) -> Tuple[int, Dict[Any, Any]]:
+            """Record a driver operation and consume only its pending parameters."""
+            params = dict(self._operation_params)
+            self._operation_params.clear()
+            return self._record(name), params
 
         def getParamInt(self, key):
             if key == real_cls.LIBFPTR_PARAM_SHIFT_STATE:
@@ -121,16 +133,48 @@ def build_fake_fptr_class(real_cls: type) -> type:
 
         # --- receipt sequence ---
         def openReceipt(self):
-            return self._record("openReceipt")
+            result, params = self._record_operation("openReceipt")
+            self.open_receipt_params.append(params)
+            return result
 
         def registration(self):
-            return self._record("registration")
+            result, params = self._record_operation("registration")
+            self.registration_params.append(params)
+            return result
 
         def payment(self):
-            return self._record("payment")
+            result, _ = self._record_operation("payment")
+            return result
 
         def receiptTax(self):
-            return self._record("receiptTax")
+            result, params = self._record_operation("receiptTax")
+            self.receipt_tax_params.append(params)
+            if result != 0:
+                return result
+
+            required = (
+                real_cls.LIBFPTR_PARAM_TAX_TYPE,
+                real_cls.LIBFPTR_PARAM_TAX_SUM,
+            )
+            missing = [param for param in required if param not in params]
+            if missing:
+                self._error_code = 8
+                self._error_desc = f"missing required receiptTax params: {missing}"
+                return -1
+            tax_sum = params[real_cls.LIBFPTR_PARAM_TAX_SUM]
+            if not isinstance(tax_sum, float):
+                self._error_code = 8
+                self._error_desc = "LIBFPTR_PARAM_TAX_SUM must be passed as float"
+                return -1
+            if (
+                params[real_cls.LIBFPTR_PARAM_TAX_TYPE]
+                == real_cls.LIBFPTR_TAX_NO
+                and tax_sum <= 0.0
+            ):
+                self._error_code = real_cls.LIBFPTR_ERROR_INVALID_TAX_SUM
+                self._error_desc = "invalid tax sum"
+                return -1
+            return result
 
         def receiptTotal(self):
             return self._record("receiptTotal")
@@ -152,6 +196,13 @@ def build_fake_fptr_class(real_cls: type) -> type:
 
         def openShift(self):
             return self._record("openShift")
+
+        def operatorLogin(self):
+            result, params = self._record_operation("operatorLogin")
+            self.operator_login_params.append(params)
+            if result == 0:
+                self._params = {}
+            return result
 
         def report(self):
             return self._record("report")

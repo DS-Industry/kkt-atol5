@@ -20,7 +20,7 @@ date at the bottom.
 - [ ] If USB flaky historically: `usbcore.autosuspend=-1` in `/boot/orangepiEnv.txt` and reboot ([issues.md](issues/issues.md))
 - [ ] Stable PSU (field notes: voltage sag → multi-minute ops / timeouts)
 
-Default HTTP: `http://<orangepi>:5050` (from `instance/config.json` / conf defaults).
+Default HTTP: `http://<orangepi>:5000` (from `instance/config.json` / conf defaults).
 
 ---
 
@@ -41,8 +41,8 @@ Connection mode is set in Admin → Settings (`usb` | `tcp`) or `instance/config
 - [ ] `/health` and `/admin/diagnostics` show open connection
 
 ```bash
-curl -s http://127.0.0.1:5050/health | python3 -m json.tool
-curl -s http://127.0.0.1:5050/admin/diagnostics | python3 -m json.tool
+curl -s http://127.0.0.1:5000/health | python3 -m json.tool
+curl -s http://127.0.0.1:5000/admin/diagnostics | python3 -m json.tool
 ```
 
 ---
@@ -77,6 +77,13 @@ Only if site policy allows a deliberate interrupt on non-production or spare pap
 - [ ] Restore link / restart service
 - [ ] Diagnostics and `/health` recover to a known state
 - [ ] No permanent stuck `printing` without operator visibility; failed rows show a useful `layer`
+- [ ] Set `Кассир на чеке` in `/admin/settings`, print one test receipt, and verify
+      that the paper receipt shows the new cashier; changing it again must affect
+      the next receipt without reconnecting the KKT
+- [ ] For a KKT registered in automatic mode, enable the application guard and
+      configure every `bay=machine number`; print one receipt from two different
+      bays and verify tag 1036 in OFD/FNS data matches each registered device
+- [ ] Submit an unknown bay and verify it is rejected before `openReceipt()`
 - [ ] Next sell+QR still succeeds after recovery
 
 If unsure about an open fiscal receipt on the device, stop and use ATOL/device tools — do not force a second open receipt.

@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import sqlite3
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -30,6 +31,21 @@ def test_main_boot_path_has_no_drop_all():
     assert drop_calls == [], f"db.drop_all must not appear in main.py (lines {drop_calls})"
     assert "_ensure_schema" in source
     assert "db.create_all" in source or "create_all()" in source
+
+
+def test_startup_skips_history_prune_in_test_mode(app_db):
+    """Import/startup must not prune the default DB before test DB rebinding."""
+    main = app_db
+
+    # At real module-import time the app fixture has not set TESTING yet;
+    # detection must therefore also recognize pytest itself.
+    with patch.dict(main.app.config, {"TESTING": False}):
+        with patch.object(main, "_ensure_schema") as ensure_schema:
+            with patch.object(main, "_prune_checks_safely") as prune:
+                main._initialize_database_at_startup()
+
+    ensure_schema.assert_called_once_with()
+    prune.assert_not_called()
 
 
 def test_ensure_schema_preserves_rows_on_restart(app_db, tmp_path):

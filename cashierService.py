@@ -18,6 +18,30 @@ from fault_isolation import (
 
 _log = logging.getLogger(__name__)
 
+# Fiscal data format tags used by the official ATOL operatorLogin example.
+# This vendored libfptr10 wrapper does not expose named constants for them.
+FFD_TAG_CASHIER_NAME = 1021
+FFD_TAG_CASHIER_INN = 1203
+FFD_TAG_MACHINE_NUMBER = 1036
+
+# Current ATOL names with documented numeric fallbacks for the older vendored
+# Python wrapper, which only declares tax constants through VAT 20%.
+TAX_DRIVER_TYPES = {
+	"no_vat": getattr(IFptr, "LIBFPTR_TAX_NO", 6),
+	"vat0": getattr(IFptr, "LIBFPTR_TAX_VAT0", 5),
+	"vat5": getattr(IFptr, "LIBFPTR_TAX_VAT5", 9),
+	"vat7": getattr(IFptr, "LIBFPTR_TAX_VAT7", 10),
+	"vat10": getattr(IFptr, "LIBFPTR_TAX_VAT10", 2),
+	"vat22": getattr(IFptr, "LIBFPTR_TAX_VAT22", 13),
+}
+
+_INCLUDED_VAT_RATES = {
+	"vat5": Decimal("5"),
+	"vat7": Decimal("7"),
+	"vat10": Decimal("10"),
+	"vat22": Decimal("22"),
+}
+
 
 class ShiftSatus(enum.Enum):
 	OPEN = 1
@@ -31,6 +55,19 @@ def _money(value):
 		return float(Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 	except (InvalidOperation, TypeError, ValueError) as exc:
 		raise ValueError(f"Invalid money value: {value!r}") from exc
+
+
+def _tax_parameters(tax_type, payment_sum):
+	"""Return ATOL tax enum and a kopeck-rounded receipt tax sum."""
+	total = Decimal(str(payment_sum)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+	if tax_type in ("no_vat", "vat0"):
+		tax_sum = total
+	else:
+		rate = _INCLUDED_VAT_RATES[tax_type]
+		tax_sum = (total * rate / (Decimal("100") + rate)).quantize(
+			Decimal("0.01"), rounding=ROUND_HALF_UP
+		)
+	return TAX_DRIVER_TYPES[tax_type], float(tax_sum)
 
 
 class CashierService:
@@ -750,6 +787,72 @@ class CashierService:
 				quantity = _money(check_data.get("quiantity", 1))
 				payment_sum = _money(check_data["sum"])
 
+				# Read at print time so Admin → Settings applies to the next receipt
+				# without reconnecting. An empty name preserves the KKT's current
+				# operator for backward-compatible deployments.
+				cfg = conf.get_config()
+				tax_type, tax_errors = conf.normalize_tax_type(cfg.get("tax_type"))
+				cashier_name, cashier_inn, cashier_errors = (
+					conf.normalize_cashier_identity(
+						cfg.get("cashier_name"), cfg.get("cashier_inn")
+					)
+				)
+				send_cashier_to_kkt, send_cashier_errors = (
+					conf.normalize_send_cashier_to_kkt(
+						cfg.get("send_cashier_to_kkt", True)
+					)
+				)
+				machine_number, automatic_errors = conf.resolve_machine_number(
+					cfg, check_data.get("bay")
+				)
+				config_errors = (
+					cashier_errors
+					+ tax_errors
+					+ send_cashier_errors
+					+ automatic_errors
+				)
+				if config_errors:
+					raise ValueError("; ".join(config_errors))
+				driver_tax_type, receipt_tax_sum = _tax_parameters(
+					tax_type, payment_sum
+				)
+
+				if send_cashier_to_kkt and cashier_name:
+					self.fptr.setParam(FFD_TAG_CASHIER_NAME, cashier_name)
+					if cashier_inn:
+						self.fptr.setParam(FFD_TAG_CASHIER_INN, cashier_inn)
+					result = self.fptr.operatorLogin()
+					ok, err = self._call_ok(
+						result,
+						"operatorLogin",
+						check_id=check_id,
+					)
+					if not ok:
+						app.logger.error("Error operator login: %s", err)
+						return err
+				elif machine_number is not None and not send_cashier_to_kkt:
+					# Kaznachey FA substitutes the operator stored in its cashier
+					# table when tag 1021 is omitted. Explicitly write an empty
+					# receipt requisite so automatic receipts do not inherit it.
+					self.fptr.setParam(FFD_TAG_CASHIER_NAME, "")
+					result = self.fptr.operatorLogin()
+					ok, err = self._call_ok(
+						result,
+						"operatorLogin",
+						check_id=check_id,
+					)
+					if not ok:
+						app.logger.error(
+							"Error clearing cashier for automatic receipt: %s", err
+						)
+						return err
+
+				# Tag 1001 is a KKT registration property. For a registered automatic
+				# KKT the application supplies only the matching machine number (1036).
+				# Keep this after operatorLogin(), which consumes pending parameters.
+				if machine_number is not None:
+					self.fptr.setParam(FFD_TAG_MACHINE_NUMBER, machine_number)
+
 				self.fptr.setParam(IFptr.LIBFPTR_PARAM_RECEIPT_TYPE, IFptr.LIBFPTR_RT_SELL)
 				result = self.fptr.openReceipt()
 				ok, err = self._call_ok(result, "openReceipt", check_id=check_id)
@@ -762,7 +865,7 @@ class CashierService:
 				self.fptr.setParam(IFptr.LIBFPTR_PARAM_COMMODITY_NAME, str(check_data["name"]))
 				self.fptr.setParam(IFptr.LIBFPTR_PARAM_PRICE, price)
 				self.fptr.setParam(IFptr.LIBFPTR_PARAM_QUANTITY, quantity)
-				self.fptr.setParam(IFptr.LIBFPTR_PARAM_TAX_TYPE, IFptr.LIBFPTR_TAX_NO)
+				self.fptr.setParam(IFptr.LIBFPTR_PARAM_TAX_TYPE, driver_tax_type)
 				self.fptr.setParam(1212, 4)
 				self.fptr.setParam(1214, 4)
 
@@ -774,7 +877,7 @@ class CashierService:
 					return err
 				app.logger.info("Check registration")
 
-				# "0" = cash; anything else = electronic (F-FISC-07). Tax stays LIBFPTR_TAX_NO.
+				# "0" = cash; anything else = electronic (F-FISC-07).
 				if str(check_data["type"]) == "0":
 					self.fptr.setParam(IFptr.LIBFPTR_PARAM_PAYMENT_TYPE, IFptr.LIBFPTR_PT_CASH)
 				else:
@@ -789,7 +892,8 @@ class CashierService:
 					return err
 				app.logger.info("Check payment")
 
-				self.fptr.setParam(IFptr.LIBFPTR_PARAM_TAX_TYPE, IFptr.LIBFPTR_TAX_NO)
+				self.fptr.setParam(IFptr.LIBFPTR_PARAM_TAX_TYPE, driver_tax_type)
+				self.fptr.setParam(IFptr.LIBFPTR_PARAM_TAX_SUM, receipt_tax_sum)
 				result = self.fptr.receiptTax()
 				ok, err = self._call_ok(result, "receiptTax", check_id=check_id)
 				if not ok:
@@ -879,7 +983,29 @@ class CashierService:
 			ok, err = self._call_ok(result, "processJson")
 			if not ok:
 				return err
-			return self.fptr.getParamString(IFptr.LIBFPTR_PARAM_JSON_DATA)
+			payload = self.fptr.getParamString(IFptr.LIBFPTR_PARAM_JSON_DATA)
+			# Some FNs omit cliche fields from a receipt. Snapshot registration
+			# separately; never replace fields actually present in the fiscal TLV.
+			try:
+				document = json.loads(payload)
+				context = {}
+				self.fptr.setParam(IFptr.LIBFPTR_PARAM_FN_DATA_TYPE, IFptr.LIBFPTR_FNDT_REG_INFO)
+				if self.fptr.fnQueryData() == 0 and self.fptr.errorCode() == 0:
+					for tag in (1048, 1018, 1009, 1187, 1060, 1117, 1037):
+						value = self.fptr.getParamString(tag).strip()
+						if value:
+							context[str(tag)] = value
+				self.fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_STATUS)
+				if self.fptr.queryData() == 0 and self.fptr.errorCode() == 0:
+					serial = self.fptr.getParamString(IFptr.LIBFPTR_PARAM_SERIAL_NUMBER).strip()
+					if serial:
+						context["1013"] = serial
+				if context:
+					document["receiptContext"] = context
+				return json.dumps(document, ensure_ascii=False)
+			except Exception:
+				_log.warning("Receipt context unavailable; keeping original FN document", exc_info=True)
+				return payload
 
 	def checkClose(self):
 		"""Ensure document closed after closeReceipt; cancel if still open."""

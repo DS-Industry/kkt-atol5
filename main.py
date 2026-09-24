@@ -1,9 +1,13 @@
 from flask import Flask, request, jsonify, render_template, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime, timedelta, date
+from qr_images import register_qr_images, qr_image_url
+from contextlib import contextmanager
+from datetime import datetime, timedelta, date, timezone
 import json
+import math
 import os
 import sys
+import threading
 from flask_apscheduler import APScheduler
 
 # Local Mac / no ATOL driver: MOCK_IFPTR=1 python3 main.py
@@ -23,11 +27,17 @@ from conf import (
     LOG_PATH,
     HTTP_HOST,
     HTTP_PORT,
+    TAX_TYPE_LABELS,
     get_config,
     save_config,
     reset_config,
     validate_settings_payload,
     coerce_settings_updates,
+    normalize_send_cashier_to_kkt,
+    normalize_automatic_mode,
+    normalize_machine_number,
+    normalize_machine_numbers_by_bay,
+    resolve_machine_number,
 )
 from fault_isolation import (
     build_failure_record,
@@ -59,6 +69,61 @@ STATUS_PENDING = "pending"
 STATUS_PRINTING = "printing"
 STATUS_DONE = "done"
 STATUS_FAILED = "failed"
+CHECK_HISTORY_LIMIT = 10000
+QR_POLL_INTERVAL_SEC = 5
+MOSCOW_TIMEZONE = timezone(timedelta(hours=3), name="Europe/Moscow")
+
+# Process-local waiter protection is sufficient because production is explicitly
+# single-process (README: one HTTP + scheduler worker process). Counts support
+# nested guards such as create-check guarding commit + find_actual_check guarding
+# the wait itself.
+_check_history_lock = threading.RLock()
+_protected_check_id_counts = {}
+
+
+def _register_protected_check_id(check_id):
+    """Register one live QR waiter and return its normalized database id."""
+    normalized_id = int(check_id)
+    with _check_history_lock:
+        _protected_check_id_counts[normalized_id] = (
+            _protected_check_id_counts.get(normalized_id, 0) + 1
+        )
+    return normalized_id
+
+
+def _unregister_protected_check_id(check_id):
+    """Release one waiter registration without disturbing nested waiters."""
+    normalized_id = int(check_id)
+    with _check_history_lock:
+        remaining = _protected_check_id_counts.get(normalized_id, 0) - 1
+        if remaining > 0:
+            _protected_check_id_counts[normalized_id] = remaining
+        else:
+            _protected_check_id_counts.pop(normalized_id, None)
+
+
+@contextmanager
+def _protect_check_id(check_id):
+    """Keep a check outside pruning for the duration of a live QR wait."""
+    normalized_id = _register_protected_check_id(check_id)
+    try:
+        yield normalized_id
+    finally:
+        _unregister_protected_check_id(normalized_id)
+
+
+@contextmanager
+def _flush_and_protect_new_check(check):
+    """Allocate an id and protect it before its transaction becomes visible."""
+    # Pruning uses lock → DB ordering too. Taking the lock before flush avoids
+    # an SQLite writer/history-lock inversion while closing the visibility race.
+    with _check_history_lock:
+        db.session.flush()
+        normalized_id = _register_protected_check_id(check.id)
+    try:
+        yield normalized_id
+    finally:
+        _unregister_protected_check_id(normalized_id)
 
 
 def _mark_failed(check, message, error_code=None, *, step=None, layer=None,
@@ -117,6 +182,7 @@ def _ensure_shift_ready(app):
 @scheduler.task("interval", id="do_job_1", seconds=3, misfire_grace_time=900, max_instances=1)
 def job1():
     with app.app_context():
+        _prune_checks_safely("queue cycle start")
         # Only pending jobs; device lock serializes concurrent prints (F-Q-08)
         checks = (
             Check.query.filter_by(status=STATUS_PENDING)
@@ -164,6 +230,7 @@ def job1():
                 check_data = {
                     "id": check.id,
                     "name": check.name,
+                    "bay": check.bay,
                     "price": check.sum,
                     "sum": check.sum,
                     "quiantity": 1,
@@ -203,6 +270,9 @@ def job1():
                 qr = data["documentTLV"]["qr"]
 
                 check.qr = qr
+                # Keep the exact FN response with this receipt, never reconstruct it
+                # later from mutable application settings or a different last receipt.
+                check.fiscal_document = json.dumps(data, ensure_ascii=False)
                 check.isQr = True
                 check.isProcessed = True
                 check.status = STATUS_DONE
@@ -220,6 +290,7 @@ def job1():
                 )
                 _mark_failed(check, str(e), context="queue", step="job1")
                 db.session.commit()
+        _prune_checks_safely("queue cycle end")
 
 
 app = Flask(__name__)
@@ -248,6 +319,7 @@ class Check(db.Model):
     dateCreated = db.Column(db.DateTime, default=datetime.utcnow)
     dateProcessed = db.Column(db.DateTime, nullable=True)
     qr = db.Column(db.String(255), nullable=True)
+    fiscal_document = db.Column(db.Text, nullable=True)
     # Schema change (explicit): queue lifecycle + failure reason (Phase A)
     status = db.Column(db.String(20), nullable=False, default=STATUS_PENDING)
     error_message = db.Column(db.String(500), nullable=True)
@@ -257,6 +329,9 @@ class Check(db.Model):
     layer = db.Column(db.String(20), nullable=True)
     step = db.Column(db.String(50), nullable=True)
     error_description = db.Column(db.String(500), nullable=True)
+
+
+register_qr_images(app, db, Check)
 
 
 def _ensure_schema():
@@ -278,6 +353,7 @@ def _ensure_schema():
     existing = {col["name"] for col in inspector.get_columns("check")}
     alterations = []
     column_defs = [
+        ("fiscal_document", "ALTER TABLE \"check\" ADD COLUMN fiscal_document TEXT"),
         ("status", "ALTER TABLE \"check\" ADD COLUMN status VARCHAR(20) DEFAULT 'pending'"),
         ("error_message", "ALTER TABLE \"check\" ADD COLUMN error_message VARCHAR(500)"),
         ("error_code", "ALTER TABLE \"check\" ADD COLUMN error_code VARCHAR(50)"),
@@ -325,15 +401,116 @@ def cleanup_old_checks(retention_days=None):
     if retention_days is None:
         retention_days = get_config().get("check_retention_days") or CHECK_RETENTION_DAYS
     cutoff = datetime.utcnow() - timedelta(days=retention_days)
-    deleted = (
-        Check.query.filter(
+    with _check_history_lock:
+        cleanup_query = Check.query.filter(
             Check.status.in_([STATUS_DONE, STATUS_FAILED]),
             Check.dateProcessed.isnot(None),
             Check.dateProcessed < cutoff,
-        ).delete(synchronize_session=False)
-    )
-    db.session.commit()
+        )
+        protected_ids = tuple(_protected_check_id_counts)
+        if protected_ids:
+            cleanup_query = cleanup_query.filter(Check.id.notin_(protected_ids))
+        deleted = cleanup_query.delete(synchronize_session=False)
+        db.session.commit()
     return {"deleted": deleted, "retention_days": retention_days, "cutoff": cutoff.isoformat()}
+
+
+def _prune_checks_to_limit(limit=CHECK_HISTORY_LIMIT):
+    """
+    Keep at most ``limit`` rows when terminal history can be removed safely.
+
+    Pending/printing rows are never deletion candidates. If active rows alone
+    make the table exceed the limit, the temporary overflow is retained.
+    """
+    # The same lock serializes waiter registration with candidate selection and
+    # deletion. A waiter registered before its row becomes visible therefore
+    # cannot lose the row even if the wall clock jumps far forward.
+    with _check_history_lock:
+        total = db.session.query(db.func.count(Check.id)).scalar() or 0
+        excess = max(total - limit, 0)
+        if excess == 0:
+            return 0
+
+        wait_timeout_sec = (
+            get_config().get("qr_wait_timeout_sec") or QR_WAIT_TIMEOUT_SEC
+        )
+        prune_before = datetime.utcnow() - timedelta(
+            seconds=float(wait_timeout_sec) + QR_POLL_INTERVAL_SEC
+        )
+        prunable_terminal = (
+            Check.dateProcessed.is_(None)
+            | (Check.dateProcessed < prune_before)
+        )
+
+        protected_ids = tuple(_protected_check_id_counts)
+        candidates = db.session.query(Check.id).filter(
+            Check.status.in_([STATUS_DONE, STATUS_FAILED]),
+            # NULL is legacy terminal history with no live waiter timestamp.
+            prunable_terminal,
+        )
+        if protected_ids:
+            candidates = candidates.filter(Check.id.notin_(protected_ids))
+
+        terminal_ids = [
+            row[0]
+            for row in (
+                candidates.order_by(Check.id.asc()).limit(excess).all()
+            )
+        ]
+        if not terminal_ids:
+            return 0
+
+        # Repeat state, age, and live-waiter exclusions in DELETE. The lock is
+        # deliberately held through commit, eliminating a select/delete window
+        # in which another thread could register one of these ids.
+        delete_query = Check.query.filter(
+            Check.id.in_(terminal_ids),
+            Check.status.in_([STATUS_DONE, STATUS_FAILED]),
+            prunable_terminal,
+        )
+        protected_ids = tuple(_protected_check_id_counts)
+        if protected_ids:
+            delete_query = delete_query.filter(Check.id.notin_(protected_ids))
+        deleted = delete_query.delete(synchronize_session=False)
+        db.session.commit()
+        app.logger.info(
+            "Pruned %s oldest terminal check(s); history limit=%s",
+            deleted,
+            limit,
+        )
+        return deleted
+
+
+def _prune_checks_safely(context):
+    """Best-effort runtime pruning without disrupting receipt processing."""
+    try:
+        return _prune_checks_to_limit()
+    except Exception:
+        db.session.rollback()
+        app.logger.error(
+            "Failed to prune check history during %s", context, exc_info=True
+        )
+        return 0
+
+
+def _utc_iso(value):
+    """Serialize a stored UTC datetime as an unambiguous ISO-8601 string."""
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    else:
+        value = value.astimezone(timezone.utc)
+    return value.isoformat().replace("+00:00", "Z")
+
+
+def _moscow_datetime_display(value):
+    """Format a stored UTC datetime for the Orange Pi's Moscow-time UI."""
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(MOSCOW_TIMEZONE).strftime("%d.%m.%Y %H:%M:%S")
 
 
 def find_actual_check(name_value, check_id=None, timeout_sec=None):
@@ -344,6 +521,40 @@ def find_actual_check(name_value, check_id=None, timeout_sec=None):
     bay/name — resolve to pending/printing id, or require id > wait-start floor.
     Returns dict: {code, qr?, id?, status?} for HTTP mapping.
     """
+    protected_id = None
+
+    def protect_resolved_id(resolved_id):
+        nonlocal protected_id
+        normalized_id = int(resolved_id)
+        if protected_id == normalized_id:
+            return
+        # Name-only resolution calls this while holding the same RLock, so
+        # switching protection remains atomic relative to pruning.
+        with _check_history_lock:
+            previous_id = protected_id
+            protected_id = _register_protected_check_id(normalized_id)
+            if previous_id is not None:
+                _unregister_protected_check_id(previous_id)
+
+    if check_id is not None:
+        protect_resolved_id(check_id)
+
+    try:
+        return _find_actual_check(
+            name_value,
+            check_id=check_id,
+            timeout_sec=timeout_sec,
+            protect_resolved_id=protect_resolved_id,
+        )
+    finally:
+        if protected_id is not None:
+            _unregister_protected_check_id(protected_id)
+
+
+def _find_actual_check(
+    name_value, check_id=None, timeout_sec=None, *, protect_resolved_id
+):
+    """Implementation for find_actual_check; the public wrapper owns guards."""
     if timeout_sec is None:
         timeout_sec = get_config().get("qr_wait_timeout_sec") or QR_WAIT_TIMEOUT_SEC
     deadline = time.monotonic() + timeout_sec
@@ -352,79 +563,86 @@ def find_actual_check(name_value, check_id=None, timeout_sec=None):
     effective_id = check_id
     id_floor = None
     if effective_id is None and name_value:
-        active = (
-            Check.query.filter(
-                Check.name == name_value,
-                Check.status.in_([STATUS_PENDING, STATUS_PRINTING]),
-            )
-            .order_by(Check.id.desc())
-            .first()
-        )
-        if active is not None:
-            effective_id = active.id
-        else:
-            # Ignore any QR/failed rows that already existed when the wait began
-            id_floor = db.session.query(db.func.max(Check.id)).scalar() or 0
-
-    while time.monotonic() < deadline:
-        time.sleep(5)
-        db.session.rollback()
-
-        if effective_id is None and name_value and id_floor is not None:
+        with _check_history_lock:
             active = (
                 Check.query.filter(
                     Check.name == name_value,
                     Check.status.in_([STATUS_PENDING, STATUS_PRINTING]),
-                    Check.id > id_floor,
                 )
                 .order_by(Check.id.desc())
                 .first()
             )
             if active is not None:
                 effective_id = active.id
+                protect_resolved_id(effective_id)
             else:
-                # Job may have finished between polls — only accept post-floor rows
-                check = (
+                # Ignore any QR/failed rows that already existed when the wait began
+                id_floor = db.session.query(db.func.max(Check.id)).scalar() or 0
+
+    while time.monotonic() < deadline:
+        time.sleep(QR_POLL_INTERVAL_SEC)
+        db.session.rollback()
+
+        if effective_id is None and name_value and id_floor is not None:
+            with _check_history_lock:
+                active = (
                     Check.query.filter(
                         Check.name == name_value,
-                        Check.isQr.is_(True),
-                        Check.qr.isnot(None),
+                        Check.status.in_([STATUS_PENDING, STATUS_PRINTING]),
                         Check.id > id_floor,
                     )
                     .order_by(Check.id.desc())
                     .first()
                 )
-                if check:
-                    return {
-                        "code": 201,
-                        "qr": check.qr,
-                        "id": check.id,
-                        "status": check.status,
-                    }
-                failed = (
-                    Check.query.filter(
-                        Check.name == name_value,
-                        Check.status == STATUS_FAILED,
-                        Check.id > id_floor,
+                if active is not None:
+                    effective_id = active.id
+                    protect_resolved_id(effective_id)
+                else:
+                    # Job may have finished between polls — only accept post-floor rows
+                    check = (
+                        Check.query.filter(
+                            Check.name == name_value,
+                            Check.isQr.is_(True),
+                            Check.qr.isnot(None),
+                            Check.id > id_floor,
+                        )
+                        .order_by(Check.id.desc())
+                        .first()
                     )
-                    .order_by(Check.id.desc())
-                    .first()
-                )
-                if failed:
-                    return {
-                        "code": 502,
-                        "message": failed.error_message or "Print failed",
-                        "error_code": failed.error_code,
-                        "error_description": failed.error_description,
-                        "layer": failed.layer,
-                        "step": failed.step,
-                        "id": failed.id,
-                        "status": failed.status,
-                        "where": failed.layer,
-                        "what_to_do_next": next_action_for_layer(failed.layer)
-                        if failed.layer
-                        else None,
-                    }
+                    if check:
+                        return {
+                            "code": 201,
+                            "qr": check.qr,
+                            "qrGenerated": bool(check.isQr),
+                            "dateTime": _utc_iso(check.dateCreated),
+                            "id": check.id,
+                            "status": check.status,
+                        }
+                    failed = (
+                        Check.query.filter(
+                            Check.name == name_value,
+                            Check.status == STATUS_FAILED,
+                            Check.id > id_floor,
+                        )
+                        .order_by(Check.id.desc())
+                        .first()
+                    )
+                    if failed:
+                        return {
+                            "code": 502,
+                            "message": failed.error_message or "Print failed",
+                            "error_code": failed.error_code,
+                            "error_description": failed.error_description,
+                            "layer": failed.layer,
+                            "step": failed.step,
+                            "id": failed.id,
+                            "status": failed.status,
+                            "where": failed.layer,
+                            "what_to_do_next": next_action_for_layer(failed.layer)
+                            if failed.layer
+                            else None,
+                        }
+            if effective_id is None:
                 continue
 
         if effective_id is not None:
@@ -451,6 +669,8 @@ def find_actual_check(name_value, check_id=None, timeout_sec=None):
                 return {
                     "code": 201,
                     "qr": check.qr,
+                    "qrGenerated": bool(check.isQr),
+                    "dateTime": _utc_iso(check.dateCreated),
                     "id": check.id,
                     "status": check.status,
                 }
@@ -471,14 +691,15 @@ def find_actual_check(name_value, check_id=None, timeout_sec=None):
             body["status"] = check.status
     elif name_value:
         # Best-effort id for legacy callers (newest row for name, preferably active)
-        pending = (
-            Check.query.filter_by(name=name_value)
-            .order_by(Check.id.desc())
-            .first()
-        )
-        if pending:
-            body["id"] = pending.id
-            body["status"] = pending.status
+        with _check_history_lock:
+            pending = (
+                Check.query.filter_by(name=name_value)
+                .order_by(Check.id.desc())
+                .first()
+            )
+            if pending:
+                body["id"] = pending.id
+                body["status"] = pending.status
     return body
 
 
@@ -494,8 +715,13 @@ def _check_to_dict(check):
         "isProcessed": check.isProcessed,
         "dateCreated": check.dateCreated,
         "dateProcessed": check.dateProcessed,
+        "dateTime": _utc_iso(check.dateCreated),
+        "dateTimeDisplay": _moscow_datetime_display(check.dateCreated),
         "qr": check.qr,
+        "qrImageUrl": qr_image_url(check.id, check.qr)
+        if check.status == STATUS_DONE and check.isQr and check.qr else None,
         "isQr": check.isQr,
+        "qrGenerated": bool(check.isQr),
         "status": check.status,
         "error_message": check.error_message,
         "error_code": check.error_code,
@@ -555,6 +781,13 @@ def _settings_from_request():
         "kkt_ip",
         "kkt_tcp_port",
         "library_path",
+        "cashier_name",
+        "cashier_inn",
+        "send_cashier_to_kkt",
+        "automatic_mode",
+        "machine_number",
+        "machine_numbers_by_bay",
+        "tax_type",
         "http_host",
         "http_port",
         "qr_wait_timeout_sec",
@@ -696,7 +929,7 @@ def get_checks():
     query = Check.query
     if layer_filter:
         query = query.filter_by(layer=layer_filter)
-    checks = query.order_by(Check.id.desc()).all()
+    checks = query.order_by(Check.id.desc()).limit(CHECK_HISTORY_LIMIT).all()
     return jsonify([_check_to_dict(c) for c in checks]), 200
 
 
@@ -715,11 +948,45 @@ def create_check():
             app.logger.error(f"Invalid JSON format: {data_str}")
             return jsonify({"error": "Invalid JSON format", "code": 400}), 400
 
+        if not isinstance(data, dict):
+            app.logger.warning("Check payload must be a JSON object")
+            return jsonify({"error": "Invalid JSON payload", "code": 400}), 400
+
         nameType = data.get('name')
         bay = data.get('bay')
-        sum_value = data.get('sum')
+        raw_sum = data.get('sum')
         type_value = data.get('type')
         name = ''
+
+        try:
+            # bool is a JSON logical value, even though Python float() accepts it.
+            if isinstance(raw_sum, bool):
+                raise ValueError
+            sum_value = float(raw_sum)
+        except (TypeError, ValueError):
+            app.logger.warning(f"Missing or invalid sum: {data}")
+            return jsonify({"error": "Invalid sum", "code": 400}), 400
+        if not math.isfinite(sum_value):
+            app.logger.warning(f"Non-finite sum: {data}")
+            return jsonify({"error": "Invalid sum", "code": 400}), 400
+
+        # Validate before building the display name: concatenating None/int used
+        # to raise TypeError and turn malformed client input into HTTP 500.
+        if not isinstance(bay, str) or not bay.strip():
+            app.logger.warning(f"Missing or invalid bay: {data}")
+            return jsonify({"error": "Missing required fields", "code": 400}), 400
+
+        _, automatic_errors = resolve_machine_number(get_config(), bay)
+        if automatic_errors:
+            message = "; ".join(automatic_errors)
+            app.logger.warning("Automatic-device validation failed: %s", message)
+            return jsonify({
+                "error": message,
+                "message": message,
+                "code": 400,
+                "layer": "APP",
+                "step": "validation",
+            }), 400
 
         if nameType == '1':
             name = 'Робот ' + bay
@@ -746,11 +1013,15 @@ def create_check():
         )
 
         db.session.add(new_check)
-        db.session.commit()
-        check_id = new_check.id
+        # Flush allocates the id while the row is still invisible to the
+        # scheduler's separate transaction. Register protection before commit,
+        # then retain it across the complete QR wait.
+        with _flush_and_protect_new_check(new_check) as check_id:
+            db.session.commit()
+            _prune_checks_safely("check creation")
 
-        # F-Q-04: poll/wait keyed by check id (not commodity name)
-        wait_result = find_actual_check(new_check.name, check_id=check_id)
+            # F-Q-04: poll/wait keyed by check id (not commodity name)
+            wait_result = find_actual_check(new_check.name, check_id=check_id)
         http_code = wait_result.get("code", 500)
 
         if http_code == 201:
@@ -760,6 +1031,9 @@ def create_check():
             return jsonify({
                 "message": "Check created successfully",
                 "qr": wait_result["qr"],
+                "qrImageUrl": qr_image_url(check_id, wait_result["qr"]),
+                "qrGenerated": wait_result["qrGenerated"],
+                "dateTime": wait_result["dateTime"],
                 "id": check_id,
                 "status": wait_result.get("status", STATUS_DONE),
                 "code": 201,
@@ -933,6 +1207,15 @@ def admin_status():
     if request.args.get("diag") == "1":
         diagnostics = run_diagnostics_ladder()
 
+    cfg = get_config()
+    tax_type = cfg.get("tax_type")
+    automatic_mode = normalize_automatic_mode(
+        cfg.get("automatic_mode", False)
+    )[0]
+    machine_number = normalize_machine_number(cfg.get("machine_number", ""))[0]
+    machine_numbers = normalize_machine_numbers_by_bay(
+        cfg.get("machine_numbers_by_bay", {})
+    )[0]
     return render_template(
         "admin/status.html",
         active="status",
@@ -943,6 +1226,14 @@ def admin_status():
         layer_hint=next_action_for_layer(layer) if layer else None,
         last_failure=last_failure,
         queue=_queue_counts_today(),
+        cashier_name=cfg.get("cashier_name") or "",
+        send_cashier_to_kkt=normalize_send_cashier_to_kkt(
+            cfg.get("send_cashier_to_kkt", True)
+        )[0],
+        automatic_mode=automatic_mode,
+        machine_number=machine_number,
+        machine_numbers=machine_numbers,
+        tax_type_label=TAX_TYPE_LABELS.get(tax_type, f"Некорректно: {tax_type}"),
         flash=flash,
         diagnostics=diagnostics,
     )
@@ -1078,8 +1369,8 @@ def admin_logs():
 @app.route("/admin/checks", methods=["GET"])
 def admin_checks():
     """Screen D — recent checks list only (no retry — unsafe without anti-double-print)."""
-    limit = request.args.get("limit", 50, type=int)
-    limit = max(1, min(limit, 200))
+    limit = request.args.get("limit", CHECK_HISTORY_LIMIT, type=int)
+    limit = max(1, min(limit, CHECK_HISTORY_LIMIT))
     rows = Check.query.order_by(Check.id.desc()).limit(limit).all()
     return render_template(
         "admin/checks.html",
@@ -1148,9 +1439,23 @@ def start_scheduler():
     app.logger.info("APScheduler started (job1 interval print worker)")
 
 
-with app.app_context():
-    # P3 / F-Q-03: never wipe DB on boot
-    _ensure_schema()
+def _is_test_runtime():
+    """Detect pytest/import-time test mode before fixtures can set TESTING."""
+    return bool(app.config.get("TESTING")) or "pytest" in sys.modules
+
+
+def _initialize_database_at_startup():
+    """Create/add schema on boot; prune production history only."""
+    with app.app_context():
+        # P3 / F-Q-03: never wipe DB on boot
+        _ensure_schema()
+        # Tests rebind SQLAlchemy after importing this module. Never prune the
+        # default instance/checks.db before that fixture has installed temp DB.
+        if not _is_test_runtime():
+            _prune_checks_safely("startup")
+
+
+_initialize_database_at_startup()
 
 app.logger.info("The program has started!")
 

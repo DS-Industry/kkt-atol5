@@ -127,6 +127,7 @@ def map_error_to_layer(
 
     # Fiscal/shift steps with unknown nonzero code → KKT (device opened path)
     if step in (
+        "operatorLogin",
         "openReceipt",
         "registration",
         "payment",

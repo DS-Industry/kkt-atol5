@@ -48,6 +48,8 @@ def test_queue_success_pending_printing_done(app_db, pending_check):
         assert check.isQr is True
         assert check.qr is not None
         mock_print.assert_called_once()
+        sent_check = mock_print.call_args.args[0]
+        assert sent_check["bay"] == "1"
 
 
 def test_queue_hard_fail_pending_printing_failed(app_db, pending_check):

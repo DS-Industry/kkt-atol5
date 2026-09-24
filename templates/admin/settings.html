@@ -30,6 +30,78 @@
     <label for="library_path">Library path</label>
     <input id="library_path" name="library_path" type="text" value="{{ cfg.library_path }}">
 
+    <label for="cashier_name">Кассир на чеке</label>
+    <input id="cashier_name" name="cashier_name" type="text"
+           maxlength="64" value="{{ cfg.cashier_name }}"
+           placeholder="Иванов Иван Иванович, кассир" autocomplete="off">
+    <p class="hint">
+      Имя будет напечатано в следующих чеках после обычного Save;
+      переподключение не требуется. Пустое поле не меняет текущего оператора ККТ.
+    </p>
+
+    {% set cashier_transmission_disabled = cfg.send_cashier_to_kkt in [false, 0, '0', 'false', 'no', 'off'] %}
+    <label for="send_cashier_to_kkt">Передавать кассира в ККТ</label>
+    <select id="send_cashier_to_kkt" name="send_cashier_to_kkt">
+      <option value="1" {% if not cashier_transmission_disabled %}selected{% endif %}>Да</option>
+      <option value="0" {% if cashier_transmission_disabled %}selected{% endif %}>Нет</option>
+    </select>
+    <p class="hint">
+      «Нет» не передаёт ФИО и ИНН. В автоматическом режиме программа перед каждым
+      чеком явно задаёт пустой тег 1021, чтобы ККТ не подставляла сохранённого оператора.
+    </p>
+
+    <label for="cashier_inn">ИНН кассира (необязательно)</label>
+    <input id="cashier_inn" name="cashier_inn" type="text"
+           inputmode="numeric" maxlength="12" pattern="[0-9]{12}"
+           value="{{ cfg.cashier_inn }}" placeholder="12 цифр" autocomplete="off">
+
+    {% set automatic_mode_disabled = cfg.automatic_mode in [false, 0, '0', 'false', 'no', 'off'] %}
+    <label for="automatic_mode">ККТ работает с автоматическими устройствами</label>
+    <select id="automatic_mode" name="automatic_mode">
+      <option value="0" {% if automatic_mode_disabled %}selected{% endif %}>Нет</option>
+      <option value="1" {% if not automatic_mode_disabled %}selected{% endif %}>Да</option>
+    </select>
+    <p class="hint">
+      Включайте только после регистрации/перерегистрации ККТ в автоматическом режиме.
+      Эта настройка не регистрирует ККТ и не меняет тег 1001 — она требует номер
+      зарегистрированный номер автомата для каждого чека.
+    </p>
+
+    <label for="machine_number">Единый зарегистрированный номер автомата (тег 1036)</label>
+    <input id="machine_number" name="machine_number" type="text"
+           maxlength="20" value="{{ cfg.machine_number }}"
+           placeholder="00107602314817" autocomplete="off">
+    <p class="hint">
+      Используется для всех внутренних ID постов и должен точно совпадать со
+      значением, указанным при регистрации ККТ. Если заполнен, таблица ниже не применяется.
+    </p>
+
+    <label for="machine_numbers_by_bay">ID поста → заводской номер автомата (тег 1036)</label>
+    <textarea id="machine_numbers_by_bay" name="machine_numbers_by_bay"
+              rows="8" spellcheck="false" autocomplete="off"
+              placeholder="1=WASH-0001&#10;2=WASH-0002">{% if cfg.machine_numbers_by_bay is mapping %}{% for bay, number in cfg.machine_numbers_by_bay|dictsort %}{{ bay }}={{ number }}{% if not loop.last %}
+{% endif %}{% endfor %}{% else %}{{ cfg.machine_numbers_by_bay or '' }}{% endif %}</textarea>
+    <p class="hint">
+      Запасной вариант, только если в ФНС зарегистрированы разные автоматы.
+      Одна строка на пост в формате <code>ID=номер</code>. ID должен точно совпадать
+      с полем <code>bay</code> входящего запроса; номер — со значением, указанным при
+      регистрации ККТ. Максимальная длина номера — 20 символов.
+    </p>
+
+    <label for="tax_type">Налоговая ставка на чеке</label>
+    <select id="tax_type" name="tax_type">
+      <option value="no_vat" {% if cfg.tax_type == 'no_vat' %}selected{% endif %}>Без НДС</option>
+      <option value="vat0" {% if cfg.tax_type == 'vat0' %}selected{% endif %}>НДС 0%</option>
+      <option value="vat5" {% if cfg.tax_type == 'vat5' %}selected{% endif %}>НДС 5%</option>
+      <option value="vat7" {% if cfg.tax_type == 'vat7' %}selected{% endif %}>НДС 7%</option>
+      <option value="vat10" {% if cfg.tax_type == 'vat10' %}selected{% endif %}>НДС 10%</option>
+      <option value="vat22" {% if cfg.tax_type == 'vat22' %}selected{% endif %}>НДС 22%</option>
+    </select>
+    <p class="hint">
+      Сохранённая ставка применяется к следующему чеку без переподключения.
+      Для ставок 5%, 7% и 22% нужны поддерживающие их драйвер и прошивка ККТ.
+    </p>
+
     <label for="qr_wait_timeout_sec">QR wait timeout (s)</label>
     <input id="qr_wait_timeout_sec" name="qr_wait_timeout_sec" type="number" min="1"
            value="{{ cfg.qr_wait_timeout_sec }}">

@@ -19,15 +19,38 @@ _ROOT = Path(__file__).resolve().parent
 INSTANCE_DIR = _ROOT / "instance"
 CONFIG_PATH = INSTANCE_DIR / "config.json"
 
+TAX_TYPE_LABELS: dict[str, str] = {
+    "no_vat": "Без НДС",
+    "vat0": "НДС 0%",
+    "vat5": "НДС 5%",
+    "vat7": "НДС 7%",
+    "vat10": "НДС 10%",
+    "vat22": "НДС 22%",
+}
+
 # F-CFG-02 + Phase A/B knobs kept as defaults (merge file over these)
 DEFAULTS: dict[str, Any] = {
     "connection_mode": "usb",  # usb | tcp
     "kkt_ip": "",
     "kkt_tcp_port": 5555,
     "library_path": "/usr/lib/",
-    # HTTP listen default 0.0.0.0:5050 (avoid macOS AirPlay on 5000)
+    # Empty preserves the KKT's existing/default operator until configured.
+    "cashier_name": "",
+    "cashier_inn": "",
+    # Explicitly controls tags 1021/1203 + operatorLogin(). Disabling this
+    # does not clear an operator already stored inside the KKT.
+    "send_cashier_to_kkt": True,
+    # Application guard for KKT registered as part of automatic devices.
+    # Tag 1001 comes from KKT registration; the app supplies tag 1036.
+    "automatic_mode": False,
+    # One registered automatic-device number for all internal bays. When set,
+    # this takes precedence over the legacy per-bay mapping below.
+    "machine_number": "",
+    "machine_numbers_by_bay": {},
+    "tax_type": "no_vat",
+    # HTTP listen default 0.0.0.0:5000
     "http_host": "0.0.0.0",
-    "http_port": 5050,
+    "http_port": 5000,
     "qr_wait_timeout_sec": 180,
     "shift_open_timeout_sec": 120,
     "shift_close_timeout_sec": 120,
@@ -68,6 +91,8 @@ def _sync_module_attrs(cfg: dict[str, Any]) -> None:
     global LOG_MAX_BYTES, LOG_BACKUP_COUNT
     global CONNECTION_MODE, KKT_IP, KKT_TCP_PORT
     global HTTP_HOST, HTTP_PORT, LOG_PATH, MAX_LOG_LINES
+    global CASHIER_NAME, CASHIER_INN, SEND_CASHIER_TO_KKT, TAX_TYPE
+    global AUTOMATIC_MODE, MACHINE_NUMBER, MACHINE_NUMBERS_BY_BAY
 
     LIBRARY_PATH = cfg["library_path"]
     SHIFT_OPEN_TIMEOUT_SEC = int(cfg["shift_open_timeout_sec"])
@@ -83,6 +108,19 @@ def _sync_module_attrs(cfg: dict[str, Any]) -> None:
     CONNECTION_MODE = str(cfg["connection_mode"]).lower()
     KKT_IP = str(cfg.get("kkt_ip") or "")
     KKT_TCP_PORT = int(cfg["kkt_tcp_port"])
+    CASHIER_NAME = str(cfg.get("cashier_name") or "")
+    CASHIER_INN = str(cfg.get("cashier_inn") or "")
+    SEND_CASHIER_TO_KKT = normalize_send_cashier_to_kkt(
+        cfg.get("send_cashier_to_kkt", True)
+    )[0]
+    AUTOMATIC_MODE = normalize_automatic_mode(
+        cfg.get("automatic_mode", False)
+    )[0]
+    MACHINE_NUMBER = normalize_machine_number(cfg.get("machine_number", ""))[0]
+    MACHINE_NUMBERS_BY_BAY = normalize_machine_numbers_by_bay(
+        cfg.get("machine_numbers_by_bay", {})
+    )[0]
+    TAX_TYPE = str(cfg.get("tax_type") or "")
     HTTP_HOST = str(cfg["http_host"])
     HTTP_PORT = int(cfg["http_port"])
     LOG_PATH = str(cfg["log_path"])
@@ -102,7 +140,11 @@ def load_config(path: Optional[Path] = None) -> dict[str, Any]:
             with open(cfg_path, "r", encoding="utf-8") as fh:
                 raw = json.load(fh)
             if isinstance(raw, dict):
-                overlay = raw
+                overlay = dict(raw)
+                # Legacy releases used 5050. The service now has one supported
+                # HTTP port, 5000; an ordinary Settings save persists it.
+                if overlay.get("http_port") in (5050, "5050"):
+                    overlay["http_port"] = DEFAULTS["http_port"]
         except (OSError, json.JSONDecodeError, TypeError):
             overlay = None
     _config = _merge_defaults(overlay)
@@ -166,6 +208,176 @@ def reset_config(*, path: Optional[Path] = None) -> dict[str, Any]:
     return save_config(None, path=path, replace=True)
 
 
+def normalize_cashier_identity(
+    cashier_name: Any, cashier_inn: Any
+) -> tuple[str, str, list[str]]:
+    """Normalize and validate fiscal tags 1021/1203."""
+    name = str(cashier_name or "").strip()
+    inn = str(cashier_inn or "").strip()
+    errors: list[str] = []
+    if len(name) > 64:
+        errors.append("cashier_name must be at most 64 characters")
+    if any(not char.isprintable() for char in name):
+        errors.append("cashier_name must not contain control characters")
+    if inn and (len(inn) != 12 or not inn.isascii() or not inn.isdigit()):
+        errors.append("cashier_inn must contain exactly 12 digits")
+    if inn and not name:
+        errors.append("cashier_name is required when cashier_inn is set")
+    return name, inn, errors
+
+
+def normalize_send_cashier_to_kkt(value: Any) -> tuple[bool, list[str]]:
+    """Normalize the explicit operatorLogin/tags 1021/1203 switch."""
+    if isinstance(value, bool):
+        return value, []
+    if isinstance(value, int) and value in (0, 1):
+        return bool(value), []
+
+    normalized = str(value).strip().lower()
+    if normalized in ("1", "true", "yes", "on"):
+        return True, []
+    if normalized in ("0", "false", "no", "off"):
+        return False, []
+    return True, ["send_cashier_to_kkt must be true or false"]
+
+
+def normalize_automatic_mode(value: Any) -> tuple[bool, list[str]]:
+    """Normalize the application guard for automatic-device receipts."""
+    if isinstance(value, bool):
+        return value, []
+    if isinstance(value, int) and value in (0, 1):
+        return bool(value), []
+
+    normalized = str(value).strip().lower()
+    if normalized in ("1", "true", "yes", "on"):
+        return True, []
+    if normalized in ("0", "false", "no", "off"):
+        return False, []
+    return False, ["automatic_mode must be true or false"]
+
+
+def normalize_machine_numbers_by_bay(
+    value: Any,
+) -> tuple[dict[str, str], list[str]]:
+    """Parse ``bay=machine number`` rows or a JSON object for fiscal tag 1036."""
+    errors: list[str] = []
+    rows: list[tuple[Any, Any, Optional[int]]] = []
+
+    if value is None or value == "":
+        return {}, []
+    if isinstance(value, dict):
+        rows = [(key, number, None) for key, number in value.items()]
+    elif isinstance(value, str):
+        for line_number, raw_line in enumerate(value.splitlines(), start=1):
+            if not raw_line.strip():
+                continue
+            if "=" not in raw_line:
+                errors.append(
+                    f"machine_numbers_by_bay line {line_number} must use bay=number"
+                )
+                continue
+            bay, number = raw_line.split("=", 1)
+            rows.append((bay, number, line_number))
+    else:
+        return {}, ["machine_numbers_by_bay must be an object or bay=number lines"]
+
+    normalized: dict[str, str] = {}
+    number_owners: dict[str, str] = {}
+    for raw_bay, raw_number, line_number in rows:
+        bay = "" if raw_bay is None else str(raw_bay).strip()
+        number = "" if raw_number is None else str(raw_number).strip()
+        where = f" on line {line_number}" if line_number is not None else ""
+
+        if not bay:
+            errors.append(f"post ID must not be empty{where}")
+            continue
+        if len(bay) > 50:
+            errors.append(f"post ID must be at most 50 characters{where}")
+        if any(not char.isprintable() for char in bay):
+            errors.append(f"post ID must not contain control characters{where}")
+        if not number:
+            errors.append(f"machine number must not be empty{where}")
+            continue
+        if len(number) > 20:
+            errors.append(f"machine number must be at most 20 characters{where}")
+        if any(not char.isprintable() for char in number):
+            errors.append(f"machine number must not contain control characters{where}")
+        if bay in normalized:
+            errors.append(f"duplicate post ID {bay!r}{where}")
+            continue
+        owner = number_owners.get(number)
+        if owner is not None and owner != bay:
+            errors.append(
+                f"machine number {number!r} is already assigned to post {owner!r}"
+            )
+            continue
+        normalized[bay] = number
+        number_owners[number] = bay
+
+    return normalized, errors
+
+
+def normalize_machine_number(value: Any) -> tuple[str, list[str]]:
+    """Normalize one registered automatic-device number for fiscal tag 1036."""
+    number = str(value or "").strip()
+    errors: list[str] = []
+    if len(number) > 20:
+        errors.append("machine_number must be at most 20 characters")
+    if any(not char.isprintable() for char in number):
+        errors.append("machine_number must not contain control characters")
+    return number, errors
+
+
+def resolve_machine_number(
+    cfg: dict[str, Any], bay: Any
+) -> tuple[Optional[str], list[str]]:
+    """Resolve tag 1036 for a receipt, failing closed in automatic mode."""
+    automatic_mode, mode_errors = normalize_automatic_mode(
+        cfg.get("automatic_mode", False)
+    )
+    if mode_errors:
+        return None, mode_errors
+    if not automatic_mode:
+        return None, []
+
+    machine_number, machine_number_errors = normalize_machine_number(
+        cfg.get("machine_number", "")
+    )
+    if machine_number_errors:
+        return None, machine_number_errors
+    if machine_number:
+        return machine_number, []
+
+    numbers, mapping_errors = normalize_machine_numbers_by_bay(
+        cfg.get("machine_numbers_by_bay", {})
+    )
+    errors = list(mapping_errors)
+    if not numbers:
+        errors.append(
+            "machine_number or machine_numbers_by_bay is required in automatic mode"
+        )
+        return None, errors
+
+    post_id = "" if bay is None else str(bay).strip()
+    if not post_id:
+        errors.append("bay is required in automatic mode")
+        return None, errors
+    machine_number = numbers.get(post_id)
+    if machine_number is None:
+        errors.append(f"no machine number configured for bay {post_id!r}")
+        return None, errors
+    return machine_number, errors
+
+
+def normalize_tax_type(tax_type: Any) -> tuple[str, list[str]]:
+    """Normalize and validate the configured fiscal tax-rate key."""
+    normalized = str(tax_type or "").strip().lower()
+    if normalized not in TAX_TYPE_LABELS:
+        allowed = ", ".join(TAX_TYPE_LABELS)
+        return normalized, [f"tax_type must be one of: {allowed}"]
+    return normalized, []
+
+
 def validate_settings_payload(data: dict[str, Any]) -> list[str]:
     """Validate Settings form/JSON; return list of error strings (empty = OK)."""
     errors: list[str] = []
@@ -226,6 +438,46 @@ def validate_settings_payload(data: dict[str, Any]) -> list[str]:
         if not str(data["library_path"]).strip():
             errors.append("library_path must not be empty")
 
+    current = get_config()
+    _, _, cashier_errors = normalize_cashier_identity(
+        data.get("cashier_name", current.get("cashier_name", "")),
+        data.get("cashier_inn", current.get("cashier_inn", "")),
+    )
+    errors.extend(cashier_errors)
+
+    _, send_cashier_errors = normalize_send_cashier_to_kkt(
+        data.get(
+            "send_cashier_to_kkt",
+            current.get("send_cashier_to_kkt", True),
+        )
+    )
+    errors.extend(send_cashier_errors)
+
+    automatic_mode, automatic_mode_errors = normalize_automatic_mode(
+        data.get("automatic_mode", current.get("automatic_mode", False))
+    )
+    errors.extend(automatic_mode_errors)
+    machine_number, global_machine_number_errors = normalize_machine_number(
+        data.get("machine_number", current.get("machine_number", ""))
+    )
+    errors.extend(global_machine_number_errors)
+    machine_numbers, machine_number_errors = normalize_machine_numbers_by_bay(
+        data.get(
+            "machine_numbers_by_bay",
+            current.get("machine_numbers_by_bay", {}),
+        )
+    )
+    errors.extend(machine_number_errors)
+    if automatic_mode and not machine_number and not machine_numbers:
+        errors.append(
+            "machine_number or machine_numbers_by_bay is required in automatic mode"
+        )
+
+    _, tax_errors = normalize_tax_type(
+        data.get("tax_type", current.get("tax_type"))
+    )
+    errors.extend(tax_errors)
+
     return errors
 
 
@@ -240,6 +492,34 @@ def coerce_settings_updates(data: dict[str, Any]) -> dict[str, Any]:
         out["kkt_tcp_port"] = int(data["kkt_tcp_port"])
     if "library_path" in data and data["library_path"] is not None:
         out["library_path"] = str(data["library_path"]).strip()
+    if "cashier_name" in data and data["cashier_name"] is not None:
+        out["cashier_name"] = str(data["cashier_name"]).strip()
+    if "cashier_inn" in data and data["cashier_inn"] is not None:
+        out["cashier_inn"] = str(data["cashier_inn"]).strip()
+    if (
+        "send_cashier_to_kkt" in data
+        and data["send_cashier_to_kkt"] is not None
+    ):
+        out["send_cashier_to_kkt"] = normalize_send_cashier_to_kkt(
+            data["send_cashier_to_kkt"]
+        )[0]
+    if "automatic_mode" in data and data["automatic_mode"] is not None:
+        out["automatic_mode"] = normalize_automatic_mode(
+            data["automatic_mode"]
+        )[0]
+    if "machine_number" in data and data["machine_number"] is not None:
+        out["machine_number"] = normalize_machine_number(
+            data["machine_number"]
+        )[0]
+    if (
+        "machine_numbers_by_bay" in data
+        and data["machine_numbers_by_bay"] is not None
+    ):
+        out["machine_numbers_by_bay"] = normalize_machine_numbers_by_bay(
+            data["machine_numbers_by_bay"]
+        )[0]
+    if "tax_type" in data and data["tax_type"] is not None:
+        out["tax_type"] = str(data["tax_type"]).strip().lower()
     if "http_host" in data and data["http_host"] is not None:
         out["http_host"] = str(data["http_host"]).strip() or "0.0.0.0"
     if "http_port" in data and data["http_port"] not in (None, ""):
@@ -276,6 +556,13 @@ LOG_BACKUP_COUNT: int
 CONNECTION_MODE: str
 KKT_IP: str
 KKT_TCP_PORT: int
+CASHIER_NAME: str
+CASHIER_INN: str
+SEND_CASHIER_TO_KKT: bool
+AUTOMATIC_MODE: bool
+MACHINE_NUMBER: str
+MACHINE_NUMBERS_BY_BAY: dict[str, str]
+TAX_TYPE: str
 HTTP_HOST: str
 HTTP_PORT: int
 LOG_PATH: str
