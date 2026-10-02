@@ -64,6 +64,9 @@ DEFAULTS: dict[str, Any] = {
     "reconnect_max_delay_sec": 30.0,
     "log_max_bytes": 5_000_000,
     "log_backup_count": 10,
+    "monitoring_url": "",
+    "monitoring_pos_id": None,
+    "monitoring_api_key": "",
 }
 
 _PERSIST_KEYS = frozenset(DEFAULTS.keys())
@@ -378,6 +381,33 @@ def normalize_tax_type(tax_type: Any) -> tuple[str, list[str]]:
     return normalized, []
 
 
+def normalize_monitoring_url(value: Any) -> tuple[str, list[str]]:
+    if value is None:
+        return "", []
+    text = str(value).strip().rstrip("/")
+    if not text:
+        return "", []
+    if text.endswith("/data/fiscal"):
+        text = text[: -len("/data/fiscal")].rstrip("/")
+    if not (text.startswith("http://") or text.startswith("https://")):
+        return "", ["monitoring_url must start with http:// or https://"]
+    return text, []
+
+
+def normalize_monitoring_pos_id(value: Any) -> tuple[Optional[int], list[str]]:
+    if value is None or value == "":
+        return None, []
+    if isinstance(value, bool):
+        return None, ["monitoring_pos_id must be a positive integer"]
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return None, ["monitoring_pos_id must be a positive integer"]
+    if number <= 0:
+        return None, ["monitoring_pos_id must be a positive integer"]
+    return number, []
+
+
 def validate_settings_payload(data: dict[str, Any]) -> list[str]:
     """Validate Settings form/JSON; return list of error strings (empty = OK)."""
     errors: list[str] = []
@@ -478,6 +508,13 @@ def validate_settings_payload(data: dict[str, Any]) -> list[str]:
     )
     errors.extend(tax_errors)
 
+    if "monitoring_url" in data:
+        _, url_errors = normalize_monitoring_url(data.get("monitoring_url"))
+        errors.extend(url_errors)
+    if "monitoring_pos_id" in data:
+        _, pos_errors = normalize_monitoring_pos_id(data.get("monitoring_pos_id"))
+        errors.extend(pos_errors)
+
     return errors
 
 
@@ -535,6 +572,12 @@ def coerce_settings_updates(data: dict[str, Any]) -> dict[str, Any]:
         out["log_path"] = str(data["log_path"]).strip() or "atol.log"
     if "max_log_lines" in data and data["max_log_lines"] not in (None, ""):
         out["max_log_lines"] = int(data["max_log_lines"])
+    if "monitoring_url" in data and data["monitoring_url"] is not None:
+        out["monitoring_url"] = normalize_monitoring_url(data["monitoring_url"])[0]
+    if "monitoring_pos_id" in data:
+        out["monitoring_pos_id"] = normalize_monitoring_pos_id(
+            data.get("monitoring_pos_id")
+        )[0]
     return out
 
 

@@ -564,15 +564,12 @@ class CashierService:
 						)
 						if hasattr(self.fptr, "getParamBool")
 						else None,
+						"need_replacement": bool(
+							self.fptr.getParamBool(IFptr.LIBFPTR_PARAM_FN_NEED_REPLACEMENT)
+						)
+						if hasattr(self.fptr, "getParamBool")
+						else None,
 					}
-					if payload["fn"].get("memory_overflow") or payload["fn"].get(
-						"resource_exhausted"
-					):
-						payload["code"] = 500
-						payload["layer"] = LAYER_FN_OFD
-						payload["message"] = "FN memory/resource exhausted"
-						payload["where"] = LAYER_FN_OFD
-						return payload
 				else:
 					# Soft-fail: still try OFD exchange
 					payload["fn"]["query_error"] = self.fptr.errorDescription()
@@ -593,6 +590,15 @@ class CashierService:
 					}
 				else:
 					payload["ofd"]["query_error"] = self.fptr.errorDescription()
+
+				if payload["fn"].get("memory_overflow") or payload["fn"].get(
+					"resource_exhausted"
+				):
+					payload["code"] = 500
+					payload["layer"] = LAYER_FN_OFD
+					payload["message"] = "FN memory/resource exhausted"
+					payload["where"] = LAYER_FN_OFD
+					return payload
 
 				self.fptr.setParam(
 					IFptr.LIBFPTR_PARAM_FN_DATA_TYPE, IFptr.LIBFPTR_FNDT_ERRORS

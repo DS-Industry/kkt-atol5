@@ -19,6 +19,7 @@ if os.environ.get("MOCK_IFPTR") == "1":
     libfptr10.IFptr = build_fake_fptr_class(libfptr10.IFptr)
 
 from cashierService import cashier_service
+import fiscal_report
 from conf import (
     QR_WAIT_TIMEOUT_SEC,
     CHECK_RETENTION_DAYS,
@@ -222,6 +223,7 @@ def job1():
                         error_description=shift_ready.get("error_description"),
                     )
                     db.session.commit()
+                    _queue_fiscal_outcome(check)
                     app.logger.error(
                         "Shift not ready for check %s: %s", check.id, shift_ready
                     )
@@ -247,6 +249,7 @@ def job1():
                         error_description=print_result.get("error_description"),
                     )
                     db.session.commit()
+                    _queue_fiscal_outcome(check)
                     app.logger.error(
                         "Print failed for check %s: %s", check.id, print_result
                     )
@@ -263,6 +266,7 @@ def job1():
                         error_description=result.get("error_description"),
                     )
                     db.session.commit()
+                    _queue_fiscal_outcome(check)
                     continue
 
                 text_payload = result.strip().strip('"')
@@ -283,6 +287,7 @@ def job1():
                 check.layer = None
                 check.step = None
                 db.session.commit()
+                _queue_fiscal_outcome(check)
                 app.logger.info(f"Print check done: id={check.id}")
             except Exception as e:
                 app.logger.error(
@@ -290,6 +295,7 @@ def job1():
                 )
                 _mark_failed(check, str(e), context="queue", step="job1")
                 db.session.commit()
+                _queue_fiscal_outcome(check)
         _prune_checks_safely("queue cycle end")
 
 
@@ -331,7 +337,116 @@ class Check(db.Model):
     error_description = db.Column(db.String(500), nullable=True)
 
 
+class FiscalOutbox(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    check_id = db.Column(db.Integer, nullable=False, unique=True, index=True)
+    payload = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
 register_qr_images(app, db, Check)
+
+
+def _configured_pos_id(cfg):
+    raw = cfg.get("monitoring_pos_id")
+    if raw is None or raw == "" or isinstance(raw, bool):
+        return None
+    try:
+        number = int(raw)
+    except (TypeError, ValueError):
+        return None
+    if number <= 0:
+        return None
+    return number
+
+
+def _device_snapshot():
+    opened = cashier_service.is_device_opened()
+    shift = cashier_service.get_shift_status(reconnect=False)
+    fn_ofd = cashier_service.get_fn_ofd_status(reconnect=False)
+    fn_body = fn_ofd.get("fn") or {}
+    ofd_body = fn_ofd.get("ofd") or {}
+    count = ofd_body.get("documents_count") if "documents_count" in ofd_body else None
+    return {
+        "treasurerLinkOpen": opened.get("opened") if "opened" in opened else None,
+        "shiftStatus": shift.get("shift"),
+        "fnMemoryOverflow": fn_body.get("memory_overflow"),
+        "fnResourceExhausted": fn_body.get("resource_exhausted"),
+        "fnReplacementRequired": fn_body.get("need_replacement"),
+        "ofdUnsentDocumentsCount": count,
+    }
+
+
+def _queue_fiscal_outcome(check):
+    try:
+        if check.status not in (STATUS_DONE, STATUS_FAILED):
+            return
+        cfg = get_config()
+        base_url = (cfg.get("monitoring_url") or "").strip()
+        api_key = (cfg.get("monitoring_api_key") or "").strip()
+        pos_id = _configured_pos_id(cfg)
+        if not base_url or not api_key or pos_id is None:
+            return
+        if FiscalOutbox.query.filter_by(check_id=check.id).first() is not None:
+            return
+        snapshot = _device_snapshot()
+        packet, missing = fiscal_report.build_packet(
+            {
+                "status": check.status,
+                "name": check.name,
+                "type": check.type,
+                "sum": check.sum,
+                "qr": check.qr,
+                "fiscal_document": check.fiscal_document,
+                "step": check.step,
+                "error_code": check.error_code,
+                "error_text": check.error_description or check.error_message,
+            },
+            snapshot,
+            pos_id,
+        )
+        if packet is None:
+            app.logger.warning(
+                "fiscal monitor skipped for check %s, missing %s",
+                check.id,
+                ", ".join(missing),
+            )
+            return
+        db.session.add(
+            FiscalOutbox(
+                check_id=check.id,
+                payload=json.dumps(packet, ensure_ascii=False),
+            )
+        )
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        app.logger.exception(
+            "fiscal monitor queue failed for check %s",
+            getattr(check, "id", None),
+        )
+
+
+def flush_fiscal_outbox():
+    cfg = get_config()
+    base_url = (cfg.get("monitoring_url") or "").strip()
+    api_key = (cfg.get("monitoring_api_key") or "").strip()
+    if not base_url or not api_key:
+        return
+    rows = FiscalOutbox.query.order_by(FiscalOutbox.id.asc()).all()
+    for row in rows:
+        try:
+            body = json.loads(row.payload)
+        except json.JSONDecodeError:
+            app.logger.warning("fiscal monitor dropped unreadable outbox %s", row.id)
+            db.session.delete(row)
+            db.session.commit()
+            continue
+        if not fiscal_report.deliver(base_url, api_key, body):
+            app.logger.warning("fiscal monitor delivery failed for outbox %s", row.id)
+            return
+        db.session.delete(row)
+        db.session.commit()
 
 
 def _ensure_schema():
@@ -794,8 +909,16 @@ def _settings_from_request():
         "shift_open_timeout_sec",
         "log_path",
         "max_log_lines",
+        "monitoring_url",
+        "monitoring_pos_id",
     )
     return {k: form.get(k) for k in keys if form.get(k) is not None}
+
+
+def _settings_view(cfg):
+    view = dict(cfg)
+    view.pop("monitoring_api_key", None)
+    return view
 
 
 def run_diagnostics_ladder():
@@ -1268,14 +1391,17 @@ def admin_settings():
         ) or "save"
 
         if action == "reset":
+            kept_key = get_config().get("monitoring_api_key") or ""
             cfg = reset_config()
+            if kept_key:
+                cfg = save_config({"monitoring_api_key": kept_key})
             flash = {"kind": "ok", "message": "Reset to defaults and saved."}
             if request.is_json or request.accept_mimetypes.best == "application/json":
-                return jsonify({"code": 200, "config": cfg, "message": flash["message"]}), 200
+                return jsonify({"code": 200, "config": _settings_view(cfg), "message": flash["message"]}), 200
             return render_template(
                 "admin/settings.html",
                 active="settings",
-                cfg=cfg,
+                cfg=_settings_view(cfg),
                 device_busy=cashier_service.is_busy(),
                 flash=flash,
             )
@@ -1289,7 +1415,7 @@ def admin_settings():
             return render_template(
                 "admin/settings.html",
                 active="settings",
-                cfg={**get_config(), **{k: data.get(k, get_config().get(k)) for k in data}},
+                cfg=_settings_view({**get_config(), **{k: data.get(k, get_config().get(k)) for k in data}}),
                 device_busy=cashier_service.is_busy(),
                 flash={"kind": "err", "message": body["message"]},
             ), 400
@@ -1322,7 +1448,7 @@ def admin_settings():
                 }
 
         if request.is_json or request.accept_mimetypes.best == "application/json":
-            payload = {"code": 200 if flash["kind"] != "err" else 500, "config": cfg, "message": flash["message"]}
+            payload = {"code": 200 if flash["kind"] != "err" else 500, "config": _settings_view(cfg), "message": flash["message"]}
             if reconnect_result is not None:
                 payload["reconnect"] = reconnect_result
                 payload["code"] = reconnect_result.get("code", payload["code"])
@@ -1331,7 +1457,7 @@ def admin_settings():
         return render_template(
             "admin/settings.html",
             active="settings",
-            cfg=cfg,
+            cfg=_settings_view(cfg),
             device_busy=cashier_service.is_busy(),
             flash=flash,
         )
@@ -1339,7 +1465,7 @@ def admin_settings():
     return render_template(
         "admin/settings.html",
         active="settings",
-        cfg=get_config(),
+        cfg=_settings_view(get_config()),
         device_busy=cashier_service.is_busy(),
         flash=flash,
     )
@@ -1424,6 +1550,18 @@ def _should_autostart_scheduler() -> bool:
         return True
     # `python main.py` parent before reloader — defer to __main__ block
     return False
+
+
+@scheduler.task(
+    "interval",
+    id="flush_fiscal_outbox",
+    seconds=5,
+    misfire_grace_time=30,
+    max_instances=1,
+)
+def flush_fiscal_outbox_job():
+    with app.app_context():
+        flush_fiscal_outbox()
 
 
 def start_scheduler():

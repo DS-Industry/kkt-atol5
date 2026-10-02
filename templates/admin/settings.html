@@ -102,6 +102,18 @@
       Для ставок 5%, 7% и 22% нужны поддерживающие их драйвер и прошивка ККТ.
     </p>
 
+    <label for="monitoring_url">Адрес мониторинга</label>
+    <input id="monitoring_url" name="monitoring_url" type="text"
+           value="{{ cfg.monitoring_url or '' }}"
+           placeholder="https://..." autocomplete="off">
+    <p class="hint">
+      Пустое поле отключает отправку итога чека. Ключ организации задаётся только в config.json.
+    </p>
+
+    <label for="monitoring_pos_id">posId мойки</label>
+    <input id="monitoring_pos_id" name="monitoring_pos_id" type="number" min="1"
+           value="{{ cfg.monitoring_pos_id or '' }}">
+
     <label for="qr_wait_timeout_sec">QR wait timeout (s)</label>
     <input id="qr_wait_timeout_sec" name="qr_wait_timeout_sec" type="number" min="1"
            value="{{ cfg.qr_wait_timeout_sec }}">
