@@ -2,7 +2,7 @@
 {% block title %}Settings{% endblock %}
 {% block content %}
   <h1>Settings / Настройки</h1>
-  <p class="lead">Persist to <code>instance/config.json</code>. Driver TCP target is the only IP field — not OFD host or KKT Ethernet.</p>
+  <p class="lead">Настройки кассы. <a href="{{ url_for('admin_displays') }}">QR-экраны постов, роботов и пылесосов</a>.</p>
 
   {% if device_busy %}
     <div class="flash warn">Device lock busy (fiscal op in progress). Prefer Save only; reconnect when idle.</div>

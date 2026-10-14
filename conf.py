@@ -47,6 +47,11 @@ DEFAULTS: dict[str, Any] = {
     # this takes precedence over the legacy per-bay mapping below.
     "machine_number": "",
     "machine_numbers_by_bay": {},
+    "qr_displays": {
+        "wash": {"count": 0, "screens": {}},
+        "robot": {"count": 0, "screens": {}},
+        "vacuum": {"count": 0, "screens": {}},
+    },
     "tax_type": "no_vat",
     # HTTP listen default 0.0.0.0:5000
     "http_host": "0.0.0.0",

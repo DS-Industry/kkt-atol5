@@ -1,0 +1,75 @@
+{% extends "admin/base.html" %}
+{% block title %}QR-экраны{% endblock %}
+{% block content %}
+<style>
+  .display-counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+  .display-counts input { max-width: 100%; }
+  .display-section { border: 0; padding: 0; margin: 1.5rem 0; min-width: 0; }
+  .display-section legend { font-size: 1.1rem; font-weight: 600; margin-bottom: .5rem; }
+  .screen-row { display: grid; grid-template-columns: 6rem minmax(9rem, 1fr) 6rem; gap: .5rem 1rem; padding: .75rem 0; border-bottom: 1px solid var(--line); }
+  .screen-row label { margin: 0; }
+  .screen-row input { max-width: 100%; }
+  .screen-buttons { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: .5rem; }
+  .display-history { overflow-x: auto; }
+  @media(max-width: 600px) {
+    .display-counts { grid-template-columns: 1fr; gap: .25rem; }
+    .screen-row { grid-template-columns: minmax(0, 1fr) 5.5rem; }
+    .screen-label, .screen-buttons { grid-column: 1 / -1; }
+    .display-history table { min-width: 32rem; }
+  }
+</style>
+<h1>QR-экраны</h1>
+{% if request.args.get('saved') == '1' %}
+<div class="flash ok">Сохранено. Новые адреса применяются без перезапуска.</div>
+{% endif %}
+<form method="post" action="{{ url_for('admin_displays') }}">
+  <div class="display-counts">
+    {% for key, label, singular in groups %}
+    <label for="count_{{ key }}">{{ label }}
+      <input id="count_{{ key }}" name="count_{{ key }}" type="number" min="0" max="100" required value="{{ displays[key].count }}">
+    </label>
+    {% endfor %}
+  </div>
+  <div class="actions"><button name="action" value="save_counts" type="submit">Save / Сохранить количество</button></div>
+</form>
+<form method="post" action="{{ url_for('admin_displays') }}">
+{% for key, label, singular in groups %}
+  {% if displays[key].count %}
+  <fieldset class="display-section">
+    <legend>{{ label }}</legend>
+    {% for n in range(1, displays[key].count + 1) %}
+    {% set screen = displays[key].screens.get(n|string, {}) %}
+    <div class="screen-row">
+      <strong class="screen-label">{{ singular }} {{ n }}</strong>
+      <label for="ip_{{ key }}_{{ n }}">IP экрана
+        <input id="ip_{{ key }}_{{ n }}" name="ip_{{ key }}_{{ n }}" value="{{ screen.get('ip', '') }}" type="text" maxlength="45" placeholder="192.168.28.201" autocomplete="off">
+      </label>
+      <label for="port_{{ key }}_{{ n }}">TCP-порт
+        <input id="port_{{ key }}_{{ n }}" name="port_{{ key }}_{{ n }}" value="{{ screen.get('port', 5000) }}" type="number" min="1" max="65535" required>
+      </label>
+      <div class="screen-buttons">
+        <button type="submit" name="target" value="{{ key }}:{{ n }}" formaction="{{ url_for('admin_display_test') }}" formnovalidate title="Проверить сохранённый адрес этого экрана">Проверить связь</button>
+        <button type="submit" name="target" value="{{ key }}:{{ n }}" formaction="{{ url_for('admin_display_test', show_qr=1) }}" formnovalidate title="Показать тестовую ссылку на сохранённом экране без обращения к кассе">Тестовый QR</button>
+      </div>
+    </div>
+    {% endfor %}
+  </fieldset>
+  {% endif %}
+{% endfor %}
+{% if displays.wash.count or displays.robot.count or displays.vacuum.count %}
+  <div class="actions"><button class="primary" name="action" value="save_addresses" type="submit">Save / Сохранить адреса</button></div>
+{% endif %}
+</form>
+<h2>Последние отправки</h2>
+{% set labels = {'wash': 'Пост', 'robot': 'Робот', 'vacuum': 'Пылесос'} %}
+{% set statuses = {'pending': 'Ожидание', 'sent': 'Принято экраном', 'failed': 'Ошибка', 'skipped': 'Экран отключён', 'superseded': 'Заменён новым чеком'} %}
+<div class="display-history">
+<table>
+  <thead><tr><th>Чек</th><th>Экран</th><th>Адрес</th><th>Статус</th><th>Попытки</th></tr></thead>
+  <tbody>{% for item in recent %}
+    <tr><td>{{ item.check_id }}</td><td>{{ labels.get(item.category, item.category) }} {{ item.bay }}</td><td>{{ item.host or '—' }}</td><td>{{ statuses.get(item.status, item.status) }}{% if item.error %}<br>{{ item.error }}{% endif %}</td><td>{{ item.attempts }}</td></tr>
+    {% else %}<tr><td colspan="5">Отправок пока нет</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

@@ -110,6 +110,7 @@
     <nav>
       <a href="{{ url_for('admin_status') }}" {% if active == 'status' %}aria-current="page"{% endif %}>Status</a>
       <a href="{{ url_for('admin_settings') }}" {% if active == 'settings' %}aria-current="page"{% endif %}>Settings</a>
+      <a href="{{ url_for('admin_displays') }}" {% if active == 'displays' %}aria-current="page"{% endif %}>QR-экраны</a>
       <a href="{{ url_for('admin_logs') }}" {% if active == 'logs' %}aria-current="page"{% endif %}>Logs</a>
       <a href="{{ url_for('admin_checks') }}" {% if active == 'checks' %}aria-current="page"{% endif %}>Checks</a>
     </nav>

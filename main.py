@@ -20,6 +20,7 @@ if os.environ.get("MOCK_IFPTR") == "1":
 
 from cashierService import cashier_service
 import fiscal_report
+import qr_displays
 from conf import (
     QR_WAIT_TIMEOUT_SEC,
     CHECK_RETENTION_DAYS,
@@ -80,6 +81,7 @@ MOSCOW_TIMEZONE = timezone(timedelta(hours=3), name="Europe/Moscow")
 # the wait itself.
 _check_history_lock = threading.RLock()
 _protected_check_id_counts = {}
+_qr_display_io_lock = threading.Lock()
 
 
 def _register_protected_check_id(check_id):
@@ -288,6 +290,7 @@ def job1():
                 check.step = None
                 db.session.commit()
                 _queue_fiscal_outcome(check)
+                _queue_qr_display(check)
                 app.logger.info(f"Print check done: id={check.id}")
             except Exception as e:
                 app.logger.error(
@@ -344,7 +347,89 @@ class FiscalOutbox(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+class QRDisplayDelivery(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    check_id = db.Column(db.Integer, nullable=False, unique=True, index=True)
+    category = db.Column(db.String(10), nullable=False, index=True)
+    bay = db.Column(db.String(50), nullable=False)
+    qr = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="pending", index=True)
+    attempts = db.Column(db.Integer, nullable=False, default=0)
+    next_attempt_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    host = db.Column(db.String(100), nullable=True)
+    error = db.Column(db.String(500), nullable=True)
+
+
 register_qr_images(app, db, Check)
+
+
+def _queue_qr_display(check):
+    """A screen failure must never requeue or fail an already fiscalized receipt."""
+    try:
+        category = qr_displays.category_for_name(check.name)
+        cfg = get_config().get("qr_displays", {})
+        if check.status != STATUS_DONE or not check.qr or not qr_displays.endpoint(cfg, category, check.bay):
+            return
+        if QRDisplayDelivery.query.filter_by(check_id=check.id).first():
+            return
+        bay = str(int(check.bay))
+        QRDisplayDelivery.query.filter(
+            QRDisplayDelivery.category == category,
+            QRDisplayDelivery.bay == bay,
+            QRDisplayDelivery.status == "pending",
+            QRDisplayDelivery.check_id < check.id,
+        ).update({"status": "superseded"}, synchronize_session=False)
+        db.session.add(QRDisplayDelivery(
+            check_id=check.id, category=category, bay=bay, qr=check.qr,
+        ))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("QR display queue failed for check %s", check.id)
+
+
+def flush_qr_displays():
+    now = datetime.utcnow()
+    rows = (QRDisplayDelivery.query.filter_by(status="pending")
+            .filter(QRDisplayDelivery.next_attempt_at <= now)
+            .order_by(QRDisplayDelivery.check_id.asc()).limit(5).all())
+    for row in rows:
+        newer = QRDisplayDelivery.query.filter(
+            QRDisplayDelivery.category == row.category,
+            QRDisplayDelivery.bay == row.bay,
+            QRDisplayDelivery.check_id > row.check_id,
+        ).first()
+        if newer:
+            row.status = "superseded"
+            db.session.commit()
+            continue
+        # Resolve the live mapping for every delivery, including retries.
+        try:
+            with _qr_display_io_lock:
+                address = qr_displays.endpoint(get_config().get("qr_displays", {}), row.category, row.bay)
+                if address:
+                    row.attempts += 1
+                    row.host = f"{address[0]}:{address[1]}"
+                    qr_displays.communicate(*address, row.qr)
+                    row.status = "sent"
+                    row.error = None
+                else:
+                    row.status = "skipped"
+                    row.error = "Экран отключён или IP не назначен."
+        except (OSError, ValueError) as exc:
+            row.error = str(exc)[:500]
+            row.status = "failed" if row.attempts >= 3 else "pending"
+            row.next_attempt_at = datetime.utcnow() + timedelta(seconds=5 * row.attempts)
+            app.logger.warning("QR screen delivery failed for check %s: %s", row.check_id, row.error)
+        db.session.commit()
+    # Keep a bounded operational history, independently of the fiscal check table.
+    old = (QRDisplayDelivery.query.filter(QRDisplayDelivery.status != "pending")
+           .order_by(QRDisplayDelivery.id.desc()).offset(1000).limit(500).all())
+    for row in old:
+        db.session.delete(row)
+    if old:
+        db.session.commit()
 
 
 def _configured_pos_id(cfg):
@@ -1471,6 +1556,85 @@ def admin_settings():
     )
 
 
+def _display_page(config, flash=None, status=200):
+    recent = QRDisplayDelivery.query.order_by(QRDisplayDelivery.id.desc()).limit(20).all()
+    return render_template("admin/displays.html", active="displays", groups=qr_displays.GROUPS,
+                           displays=config, recent=recent, flash=flash), status
+
+
+@app.route("/admin/displays", methods=["GET", "POST"])
+def admin_displays():
+    current = qr_displays.normalized_config(get_config().get("qr_displays", {}))
+    wants_json = request.is_json or request.accept_mimetypes.best == "application/json"
+    if request.method == "GET":
+        if wants_json:
+            return jsonify({"config": current})
+        return _display_page(current)
+    data = request.get_json(silent=True) if request.is_json else request.form
+    if not isinstance(data, dict) and request.is_json:
+        return jsonify({"code": 400, "errors": ["JSON должен быть объектом."]}), 400
+    action = data.get("action")
+    if action == "save_counts":
+        counts = data.get("counts") if request.is_json else {
+            key: data.get(f"count_{key}", current[key]["count"]) for key, _, _ in qr_displays.GROUPS
+        }
+        config, errors = qr_displays.save_counts(current, counts)
+        if not errors:
+            config, errors = qr_displays.save_addresses(config, {})
+    elif action == "save_addresses":
+        addresses = data.get("screens") if request.is_json else {
+            key: {str(n): {"ip": data.get(f"ip_{key}_{n}", ""),
+                            "port": data.get(f"port_{key}_{n}", "5000")}
+                  for n in range(1, current[key]["count"] + 1)}
+            for key, _, _ in qr_displays.GROUPS
+        }
+        config, errors = qr_displays.save_addresses(current, addresses)
+    else:
+        config, errors = current, ["Неизвестное действие."]
+    if errors:
+        if wants_json:
+            return jsonify({"code": 400, "errors": errors}), 400
+        return _display_page(current, {"kind": "err", "message": "; ".join(errors)}, 400)
+    try:
+        save_config({"qr_displays": config})
+    except OSError:
+        app.logger.exception("Cannot save QR display configuration")
+        if wants_json:
+            return jsonify({"code": 500, "message": "Не удалось сохранить настройки."}), 500
+        return _display_page(current, {"kind": "err", "message": "Не удалось сохранить настройки."}, 500)
+    message = "Сохранено. Новые адреса применяются без перезапуска."
+    if wants_json:
+        return jsonify({"code": 200, "config": config, "message": message})
+    return redirect(url_for("admin_displays", saved="1"), code=303)
+
+
+@app.route("/admin/displays/test", methods=["POST"])
+def admin_display_test():
+    data = request.get_json(silent=True) if request.is_json else request.form
+    target = data.get("target", "") if isinstance(data, dict) or not request.is_json else ""
+    parts = str(target).split(":")
+    config = qr_displays.normalized_config(get_config().get("qr_displays", {}))
+    address = qr_displays.endpoint(config, *parts) if len(parts) == 2 else None
+    status, info = 200, None
+    if not address:
+        status, message = 400, "Сначала сохраните IP и TCP-порт этого экрана."
+    else:
+        try:
+            with _qr_display_io_lock:
+                address = qr_displays.endpoint(get_config().get("qr_displays", {}), *parts)
+                if not address:
+                    raise ValueError("Экран отключён или IP не назначен.")
+                test_qr = "https://example.com/telemetron-test" if request.args.get("show_qr") == "1" else None
+                info = qr_displays.communicate(*address, test_qr)
+            message = ("Экран подтвердил тестовый QR. Проверьте его телефоном." if test_qr
+                       else "Связь с Telemetron подтверждена.")
+        except (OSError, ValueError) as exc:
+            status, message = 502, str(exc)
+    if request.is_json or request.accept_mimetypes.best == "application/json":
+        return jsonify({"code": status, "message": message, "info": info}), status
+    return _display_page(config, {"kind": "ok" if status == 200 else "err", "message": message}, status)
+
+
 @app.route("/admin/logs", methods=["GET"])
 def admin_logs():
     """Screen C — Logs tail."""
@@ -1562,6 +1726,16 @@ def _should_autostart_scheduler() -> bool:
 def flush_fiscal_outbox_job():
     with app.app_context():
         flush_fiscal_outbox()
+
+
+@scheduler.task("interval", id="flush_qr_displays", seconds=3, misfire_grace_time=30, max_instances=1)
+def flush_qr_displays_job():
+    with app.app_context():
+        try:
+            flush_qr_displays()
+        except Exception:
+            db.session.rollback()
+            app.logger.exception("QR display worker failed")
 
 
 def start_scheduler():
