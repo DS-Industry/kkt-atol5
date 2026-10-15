@@ -1,0 +1,56 @@
+{% extends "admin/base.html" %}
+{% block title %}Checks{% endblock %}
+{% block content %}
+  <h1>Checks / Чеки</h1>
+  <p class="lead">Recent queue rows (list only). No retry — unsafe without anti-double-print rules.</p>
+
+  <div class="actions">
+    <a class="btn" href="{{ url_for('admin_checks') }}">Refresh</a>
+    <a class="btn" href="{{ url_for('get_checks') }}">/get-checks JSON</a>
+  </div>
+
+  <div style="overflow-x: auto;">
+  <table>
+    <thead>
+      <tr>
+        <th>id</th>
+        <th>bay</th>
+        <th>sum</th>
+        <th>status</th>
+        <th>QR generated</th>
+        <th>Дата и время</th>
+        <th>QR</th>
+        <th>layer</th>
+        <th>error</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in checks %}
+        <tr>
+          <td>{{ c.id }}</td>
+          <td>{{ c.bay }}</td>
+          <td>{{ c.sum }}</td>
+          <td>{{ c.status }}</td>
+          {% set qr_generated = c.qrGenerated if c.qrGenerated is defined else c.isQr %}
+          <td>{% if qr_generated %}Да{% else %}Нет{% endif %}</td>
+          <td style="white-space: nowrap;">{{ c.dateTimeDisplay or '—' }}</td>
+          <td>
+            {% if c.qr %}
+              <details>
+                <summary>Показать</summary>
+                <code style="word-break: break-all; user-select: all;" title="{{ c.qr }}">{{ c.qr }}</code>
+              </details>
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td>{% if c.layer %}<span class="layer-{{ c.layer }}">{{ c.layer }}</span>{% else %}—{% endif %}</td>
+          <td>{{ c.error_message or c.error_description or '—' }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="9">No checks</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+{% endblock %}

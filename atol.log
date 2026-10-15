@@ -1,0 +1,127 @@
+2026-10-14 11:17:31,839 - INFO - The program has started!
+2026-10-14 11:17:32,554 - INFO - Printing check: id=1
+2026-10-14 11:17:32,566 - INFO - Print check done: id=1
+2026-10-14 11:17:32,575 - WARNING - QR screen delivery failed for check 1: screen offline
+2026-10-14 11:17:32,586 - WARNING - QR screen delivery failed for check 1: screen offline
+2026-10-14 11:17:32,598 - WARNING - QR screen delivery failed for check 1: screen offline
+2026-10-14 11:18:09,394 - INFO - The program has started!
+2026-10-14 11:18:09,663 - WARNING - Automatic-device validation failed: no machine number configured for bay '9'
+2026-10-14 11:18:09,932 - INFO - Applied Check schema alterations: fiscal_document, status, error_message, error_code, layer, step, error_description
+2026-10-14 11:18:10,195 - WARNING - No data provided in headers
+2026-10-14 11:18:10,329 - INFO - Printing check: id=1
+2026-10-14 11:18:10,345 - INFO - Print check done: id=1
+2026-10-14 11:18:10,348 - WARNING - fiscal monitor delivery failed for outbox 1
+2026-10-14 11:18:10,402 - INFO - Printing check: id=1
+2026-10-14 11:18:10,407 - WARNING - Shift timeout for check 1 (re-queued pending): {'code': 504, 'message': 'Shift open timed out', 'retryable': True}
+2026-10-14 11:18:10,451 - WARNING - fiscal monitor delivery failed for outbox 1
+2026-10-14 11:18:10,597 - INFO - Printing check: id=1
+2026-10-14 11:18:10,603 - INFO - Print check done: id=1
+2026-10-14 11:18:10,992 - INFO - Applied Check schema alterations: fiscal_document, status, error_message, error_code, layer, step, error_description
+2026-10-14 11:18:11,426 - INFO - Printing check: id=1
+2026-10-14 11:18:11,431 - ERROR - Print failed for check 1: {'code': 500, 'message': 'Port unavailable', 'error_code': 4, 'step': 'reconnect', 'layer': 'LINK', 'error_description': 'Port is not available'}
+2026-10-14 11:18:13,209 - INFO - Printing check: id=1
+2026-10-14 11:18:13,221 - INFO - Print check done: id=1
+2026-10-14 11:18:13,230 - WARNING - QR screen delivery failed for check 1: screen offline
+2026-10-14 11:18:13,242 - WARNING - QR screen delivery failed for check 1: screen offline
+2026-10-14 11:18:13,252 - WARNING - QR screen delivery failed for check 1: screen offline
+2026-10-14 11:18:13,796 - INFO - Creating check: Name=Робот 1, Bay=1, Sum=750.0, Type=1
+2026-10-14 11:18:13,807 - INFO - QR code generated: t=20260914T2009&s=750.00&fn=7380440902802880&i=4261&fp=830583019&n=1 for check 1
+2026-10-14 11:18:13,865 - INFO - Printing check: id=1
+2026-10-14 11:18:13,870 - INFO - Print check done: id=1
+2026-10-14 11:18:13,919 - INFO - Printing check: id=1
+2026-10-14 11:18:13,925 - ERROR - Print failed for check 1: {'code': 500, 'message': 'registration failed: boom', 'error_code': 42, 'step': 'registration'}
+2026-10-14 11:18:13,975 - INFO - Printing check: id=1
+2026-10-14 11:18:13,980 - WARNING - Shift timeout for check 1 (re-queued pending): {'code': 504, 'message': 'Shift open timed out after 0.05s', 'retryable': True}
+2026-10-14 11:18:14,591 - INFO - Pruned 1 oldest terminal check(s); history limit=10000
+2026-10-14 11:18:14,695 - INFO - Pruned 1 oldest terminal check(s); history limit=0
+2026-10-14 11:18:14,754 - INFO - Pruned 1 oldest terminal check(s); history limit=0
+2026-10-14 11:18:14,790 - INFO - Creating check: Name=Робот 7, Bay=7, Sum=100.0, Type=1
+2026-10-14 11:18:14,797 - ERROR - Error processing check: synthetic waiter failure
+Traceback (most recent call last):
+  File "C:\Users\rakitin\Documents\Telemetron-kkt\kkt-atol5\main.py", line 1225, in create_check
+    wait_result = find_actual_check(new_check.name, check_id=check_id)
+  File "C:\Users\rakitin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1175, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\rakitin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1179, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\rakitin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1240, in _execute_mock_call
+    result = effect(*args, **kwargs)
+  File "C:\Users\rakitin\Documents\Telemetron-kkt\kkt-atol5\tests\test_receipt_history.py", line 181, in fail_wait
+    raise RuntimeError("synthetic waiter failure")
+RuntimeError: synthetic waiter failure
+2026-10-14 11:19:30,159 - INFO - The program has started!
+2026-10-14 11:22:57,646 - INFO - The program has started!
+2026-10-14 11:22:58,077 - ERROR - Cannot save QR display configuration
+Traceback (most recent call last):
+  File "C:\Users\rakitin\Documents\Telemetron-kkt\kkt-atol5\main.py", line 1592, in admin_displays
+    save_config({"qr_displays": config})
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rakitin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1175, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\rakitin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1179, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\rakitin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1234, in _execute_mock_call
+    raise effect
+OSError: disk full
+2026-10-14 11:22:58,464 - INFO - Printing check: id=1
+2026-10-14 11:22:58,483 - INFO - Print check done: id=1
+2026-10-14 11:22:58,497 - WARNING - QR screen delivery failed for check 1: screen offline
+2026-10-14 11:22:58,513 - WARNING - QR screen delivery failed for check 1: screen offline
+2026-10-14 11:22:58,530 - WARNING - QR screen delivery failed for check 1: screen offline
+2026-10-14 11:26:06,518 - INFO - The program has started!
+2026-10-14 11:26:06,925 - ERROR - Cannot save QR display configuration
+Traceback (most recent call last):
+  File "C:\Users\rakitin\Documents\Telemetron-kkt\kkt-atol5\main.py", line 1599, in admin_displays
+    save_config({"qr_displays": config})
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rakitin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1175, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\rakitin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1179, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\rakitin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1234, in _execute_mock_call
+    raise effect
+OSError: disk full
+2026-10-14 11:26:07,272 - INFO - Printing check: id=1
+2026-10-14 11:26:07,284 - INFO - Print check done: id=1
+2026-10-14 11:26:07,291 - WARNING - QR screen delivery failed for check 1: screen offline
+2026-10-14 11:26:07,302 - WARNING - QR screen delivery failed for check 1: screen offline
+2026-10-14 11:26:07,313 - WARNING - QR screen delivery failed for check 1: screen offline
+2026-10-14 11:26:07,559 - INFO - Printing check: id=1
+2026-10-14 11:26:07,565 - INFO - Print check done: id=1
+2026-10-14 11:26:07,616 - INFO - Printing check: id=1
+2026-10-14 11:26:07,621 - ERROR - Print failed for check 1: {'code': 500, 'message': 'registration failed: boom', 'error_code': 42, 'step': 'registration'}
+2026-10-14 11:26:07,672 - INFO - Printing check: id=1
+2026-10-14 11:26:07,678 - WARNING - Shift timeout for check 1 (re-queued pending): {'code': 504, 'message': 'Shift open timed out after 0.05s', 'retryable': True}
+2026-10-14 11:26:49,459 - INFO - The program has started!
+2026-10-14 13:48:53,232 - INFO - The program has started!
+2026-10-14 13:48:53,720 - ERROR - Cannot save QR display configuration
+Traceback (most recent call last):
+  File "C:\Users\rakitin\Documents\Telemetron-kkt\kkt-atol5\main.py", line 1599, in admin_displays
+    save_config({"qr_displays": config})
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rakitin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1175, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\rakitin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1179, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\rakitin\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py", line 1234, in _execute_mock_call
+    raise effect
+OSError: disk full
+2026-10-14 13:48:54,130 - INFO - Printing check: id=1
+2026-10-14 13:48:54,144 - INFO - Print check done: id=1
+2026-10-14 13:48:54,155 - WARNING - QR screen delivery failed for check 1: screen offline
+2026-10-14 13:48:54,168 - WARNING - QR screen delivery failed for check 1: screen offline
+2026-10-14 13:48:54,180 - WARNING - QR screen delivery failed for check 1: screen offline
+2026-10-14 13:48:54,473 - INFO - Printing check: id=1
+2026-10-14 13:48:54,479 - INFO - Print check done: id=1
+2026-10-14 13:48:54,538 - INFO - Printing check: id=1
+2026-10-14 13:48:54,545 - ERROR - Print failed for check 1: {'code': 500, 'message': 'registration failed: boom', 'error_code': 42, 'step': 'registration'}
+2026-10-14 13:48:54,604 - INFO - Printing check: id=1
+2026-10-14 13:48:54,610 - WARNING - Shift timeout for check 1 (re-queued pending): {'code': 504, 'message': 'Shift open timed out after 0.05s', 'retryable': True}
