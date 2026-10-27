@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 from libfptr10 import IFptr
 
-import conf
+import app.data.config as conf
 
 
 @pytest.fixture
@@ -191,9 +191,9 @@ def test_apply_settings_and_reconnect_applies_tcp_then_opens(
     fptr._settings = {}
     fptr.calls.clear()
 
-    with patch("cashierService.time.sleep", return_value=None):
-        with patch("conf.RECONNECT_BASE_DELAY_SEC", 0.01):
-            with patch("conf.RECONNECT_MAX_DELAY_SEC", 0.05):
+    with patch("app.services.cashier.time.sleep", return_value=None):
+        with patch("app.data.config.RECONNECT_BASE_DELAY_SEC", 0.01):
+            with patch("app.data.config.RECONNECT_MAX_DELAY_SEC", 0.05):
                 result = service.apply_settings_and_reconnect(max_attempts=1)
 
     assert result["code"] == 200
@@ -226,8 +226,8 @@ def test_apply_settings_and_reconnect_switches_usb_to_tcp(
         path=isolated_config,
     )
     service.fptr._opened = 0
-    with patch("cashierService.time.sleep", return_value=None):
-        with patch("conf.RECONNECT_MAX_ATTEMPTS", 1):
+    with patch("app.services.cashier.time.sleep", return_value=None):
+        with patch("app.data.config.RECONNECT_MAX_ATTEMPTS", 1):
             result = service.apply_settings_and_reconnect(max_attempts=1)
 
     assert result["code"] == 200

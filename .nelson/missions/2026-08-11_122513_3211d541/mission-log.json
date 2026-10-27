@@ -1,0 +1,231 @@
+{
+  "version": 1,
+  "events": [
+    {
+      "type": "phase_transition",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T12:25:24Z",
+      "data": {
+        "from_phase": "SAILING_ORDERS",
+        "to_phase": "ESTIMATE"
+      }
+    },
+    {
+      "type": "estimate_skipped",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T12:25:24Z",
+      "data": {
+        "reason": "Packaging-only Tier L; FSD \u00a79 Phase D / F-OPS-03\u201305 / \u00a710.2\u201310.3 crystal-clear; recon shows requirements.txt+pytest.ini+tests already present, no root .gitignore/systemd/smoke \u2014 no architectural surprises"
+      }
+    },
+    {
+      "type": "phase_transition",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T12:25:25Z",
+      "data": {
+        "from_phase": "ESTIMATE",
+        "to_phase": "BATTLE_PLAN"
+      }
+    },
+    {
+      "type": "squadron_formed",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T12:26:17Z",
+      "data": {
+        "captain_count": 3,
+        "has_red_cell": false,
+        "execution_mode": "subagents",
+        "standing_order_check": {
+          "triggered": [],
+          "remedies": []
+        }
+      }
+    },
+    {
+      "type": "battle_plan_approved",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T12:26:17Z",
+      "data": {
+        "task_count": 3,
+        "parallel_tracks": 1,
+        "critical_path_length": 3,
+        "standing_order_check": {
+          "triggered": [],
+          "remedies": []
+        }
+      }
+    },
+    {
+      "type": "phase_transition",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T12:26:18Z",
+      "data": {
+        "from_phase": "BATTLE_PLAN",
+        "to_phase": "FORMATION"
+      }
+    },
+    {
+      "type": "permission_granted",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T12:26:20Z",
+      "data": {}
+    },
+    {
+      "type": "phase_transition",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T12:26:21Z",
+      "data": {
+        "from_phase": "FORMATION",
+        "to_phase": "PERMISSION"
+      }
+    },
+    {
+      "type": "phase_transition",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T12:26:24Z",
+      "data": {
+        "from_phase": "PERMISSION",
+        "to_phase": "UNDERWAY"
+      }
+    },
+    {
+      "type": "task_completed",
+      "checkpoint": 1,
+      "timestamp": "2026-08-11T12:28:22Z",
+      "data": {
+        "task_id": 1,
+        "task_name": "Implement Phase D packaging artifacts",
+        "owner": "HMS Resolute",
+        "station_tier": 1,
+        "verification": "passed"
+      }
+    },
+    {
+      "type": "checkpoint",
+      "checkpoint": 1,
+      "timestamp": "2026-08-11T12:28:47Z",
+      "data": {
+        "progress": {
+          "pending": 2,
+          "in_progress": 0,
+          "completed": 1,
+          "blocked": 0
+        },
+        "budget": {
+          "tokens_spent": 50000,
+          "tokens_remaining": 150000,
+          "pct_consumed": 25.0,
+          "burn_rate_per_checkpoint": 50000
+        },
+        "hull_summary": {
+          "green": 1,
+          "amber": 0,
+          "red": 0,
+          "critical": 0
+        },
+        "blockers": [],
+        "standing_order_violations": [],
+        "admiral_decision": "continue",
+        "admiral_rationale": "Task 1 artifacts verified on disk; dispatch HMS Vigilant for Phase D review"
+      }
+    },
+    {
+      "type": "task_completed",
+      "checkpoint": 1,
+      "timestamp": "2026-08-11T12:30:51Z",
+      "data": {
+        "task_id": 2,
+        "task_name": "Review Phase D packaging changes",
+        "owner": "HMS Vigilant",
+        "station_tier": 1,
+        "verification": "passed"
+      }
+    },
+    {
+      "type": "checkpoint",
+      "checkpoint": 2,
+      "timestamp": "2026-08-11T12:30:53Z",
+      "data": {
+        "progress": {
+          "pending": 1,
+          "in_progress": 0,
+          "completed": 2,
+          "blocked": 0
+        },
+        "budget": {
+          "tokens_spent": 90000,
+          "tokens_remaining": 110000,
+          "pct_consumed": 45.0,
+          "burn_rate_per_checkpoint": 40000
+        },
+        "hull_summary": {
+          "green": 2,
+          "amber": 0,
+          "red": 0,
+          "critical": 0
+        },
+        "blockers": [],
+        "standing_order_violations": [],
+        "admiral_decision": "continue",
+        "admiral_rationale": "Review complete with nits fixed; dispatch HMS Assay for pytest green gate"
+      }
+    },
+    {
+      "type": "task_completed",
+      "checkpoint": 2,
+      "timestamp": "2026-08-11T12:31:46Z",
+      "data": {
+        "task_id": 3,
+        "task_name": "Ensure pytest suite green",
+        "owner": "HMS Assay",
+        "station_tier": 1,
+        "verification": "passed"
+      }
+    },
+    {
+      "type": "checkpoint",
+      "checkpoint": 3,
+      "timestamp": "2026-08-11T12:31:47Z",
+      "data": {
+        "progress": {
+          "pending": 0,
+          "in_progress": 0,
+          "completed": 3,
+          "blocked": 0
+        },
+        "budget": {
+          "tokens_spent": 120000,
+          "tokens_remaining": 80000,
+          "pct_consumed": 60.0,
+          "burn_rate_per_checkpoint": 30000
+        },
+        "hull_summary": {
+          "green": 3,
+          "amber": 0,
+          "red": 0,
+          "critical": 0
+        },
+        "blockers": [],
+        "standing_order_violations": [],
+        "admiral_decision": "continue",
+        "admiral_rationale": "All three specialist tasks complete; pytest 44 passed; proceed to stand-down"
+      }
+    },
+    {
+      "type": "mission_complete",
+      "checkpoint": 4,
+      "timestamp": "2026-08-11T12:31:47Z",
+      "data": {
+        "outcome_achieved": true,
+        "tasks_completed": 3,
+        "tasks_total": 3,
+        "total_tokens_consumed": 120000,
+        "budget_pct_consumed": 60.0,
+        "duration_minutes": 6,
+        "ships_used": 3,
+        "reliefs": 0,
+        "standing_order_violations_total": 0
+      }
+    }
+  ]
+}

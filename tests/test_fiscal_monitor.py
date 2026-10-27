@@ -3,8 +3,8 @@ from unittest.mock import patch
 
 import pytest
 
-import conf
-import fiscal_report
+import app.data.config as conf
+import app.services.fiscal_report as fiscal_report
 
 
 SNAPSHOT = {
@@ -163,13 +163,13 @@ def test_http_failure_keeps_done_check_and_outbox(app_db, isolated_config):
                 with patch.object(
                     main.cashier_service, "readLastReciept", return_value=receipt
                 ):
-                    with patch.object(main, "_device_snapshot", return_value=SNAPSHOT):
+                    with patch("app.services.queue._device_snapshot", return_value=SNAPSHOT):
                         main.job1()
         check = main.db.session.get(main.Check, check_id)
         assert check.status == main.STATUS_DONE
         assert check.qr == RECEIPT["documentTLV"]["qr"]
         assert main.FiscalOutbox.query.count() == 1
-        with patch("fiscal_report.deliver", return_value=False):
+        with patch("app.services.fiscal_report.deliver", return_value=False):
             main.flush_fiscal_outbox()
         check = main.db.session.get(main.Check, check_id)
         assert check.status == main.STATUS_DONE
@@ -181,9 +181,8 @@ def test_requeue_does_not_queue_monitor_packet(app_db, isolated_config):
     _enable_monitoring(isolated_config)
     with main.app.app_context():
         check_id = _pending(main)
-        with patch.object(
-            main,
-            "_ensure_shift_ready",
+        with patch(
+            "app.services.queue._ensure_shift_ready",
             return_value={"code": 504, "message": "Shift open timed out", "retryable": True},
         ):
             main.job1()
@@ -219,7 +218,7 @@ def test_outbox_retries_in_order_until_accepted(app_db, isolated_config):
             )
         )
         main.db.session.commit()
-        with patch("fiscal_report.deliver", side_effect=deliver):
+        with patch("app.services.fiscal_report.deliver", side_effect=deliver):
             main.flush_fiscal_outbox()
             assert [item[2] for item in sent] == ["older"]
             assert main.FiscalOutbox.query.count() == 2

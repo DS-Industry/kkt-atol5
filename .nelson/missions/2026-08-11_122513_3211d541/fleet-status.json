@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "mission": {
+    "outcome": "Deliver Phase D packaging: requirements, root .gitignore, systemd unit example, hardware smoke checklist, pytest green, ops-runbook pointers",
+    "status": "complete",
+    "phase": "STAND_DOWN",
+    "started_at": "2026-08-11T12:25:13Z",
+    "checkpoint_number": 4
+  },
+  "progress": {
+    "pending": 0,
+    "in_progress": 0,
+    "completed": 3,
+    "blocked": 0,
+    "total": 3
+  },
+  "budget": {
+    "tokens_spent": 120000,
+    "tokens_remaining": 80000,
+    "pct_consumed": 60.0,
+    "burn_rate_per_checkpoint": 30000,
+    "burn_rate_per_task": 40000,
+    "projected_budget_at_completion": 120000
+  },
+  "squadron": [
+    {
+      "ship_name": "unknown",
+      "ship_class": null,
+      "role": "captain",
+      "hull_integrity_pct": 100,
+      "hull_integrity_status": "Green",
+      "relief_requested": false,
+      "task_id": null,
+      "task_name": null,
+      "task_status": null
+    },
+    {
+      "ship_name": "unknown",
+      "ship_class": null,
+      "role": "captain",
+      "hull_integrity_pct": 100,
+      "hull_integrity_status": "Green",
+      "relief_requested": false,
+      "task_id": null,
+      "task_name": null,
+      "task_status": null
+    },
+    {
+      "ship_name": "unknown",
+      "ship_class": null,
+      "role": "captain",
+      "hull_integrity_pct": 100,
+      "hull_integrity_status": "Green",
+      "relief_requested": false,
+      "task_id": null,
+      "task_name": null,
+      "task_status": null
+    }
+  ],
+  "blockers": [],
+  "recent_events": [],
+  "last_updated": "2026-08-11T12:31:47Z"
+}

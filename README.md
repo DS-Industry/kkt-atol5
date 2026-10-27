@@ -66,13 +66,13 @@ Flask-сервис для печати фискальных чеков чере�
 
 | Слой | Где | Ответственность |
 |------|-----|-----------------|
-| HTTP / GUI | `main.py`, `templates/admin/` | Валидация входа, коды ответа, админка, постановка в очередь, ожидание QR |
-| Очередь / состояние | модель `Check` + SQLite | Жизненный цикл чека, причины сбоя, слой `layer` для поддержки |
+| HTTP / GUI | `app/http/`, `templates/admin/` | Валидация входа, коды ответа, админка, постановка в очередь, ожидание QR |
+| Очередь / состояние | `app/data/models.py` + SQLite | Жизненный цикл чека, причины сбоя, слой `layer` для поддержки |
 | Планировщик | Flask-APScheduler `job1` | Берёт `pending`, печатает по одному, пишет `done`/`failed` |
-| Фискальный сервис | `cashierService.py` | Единственный доступ к устройству: open/reconnect, смена, чек, диагностика |
+| Фискальный сервис | `app/services/cashier.py` | Единственный доступ к устройству: open/reconnect, смена, чек, диагностика |
 | Драйвер | `libfptr10.py` → native `.so` | Вендорный API АТОЛ (не править стиль файла) |
-| Конфиг | `conf.py` + `instance/config.json` | Режим USB/TCP, IP, таймауты, HTTP-порт, путь к библиотеке |
-| Диагностика | `fault_isolation.py` | Маппинг кода ошибки → `APP` / `LINK` / `KKT` / `FN_OFD` |
+| Конфиг | `app/data/config.py` + `instance/config.json` | Режим USB/TCP, IP, таймауты, HTTP-порт, путь к библиотеке |
+| Диагностика | `app/services/faults.py` | Маппинг кода ошибки → `APP` / `LINK` / `KKT` / `FN_OFD` |
 
 Правило разделения: маршруты Flask **не** вызывают `IFptr` напрямую — только методы `CashierService`.
 
@@ -145,7 +145,7 @@ openReceipt → registration (позиции) → payment → receiptTax → rec
 ### Конфиг в рантайме
 
 ```
-DEFAULTS в conf.py  ←  merge  ←  instance/config.json
+DEFAULTS в app/data/config.py  ←  merge  ←  instance/config.json
                                       ↑
                             Admin → Settings (Save)
 ```
@@ -194,7 +194,7 @@ pip install -r requirements.txt
 python3 main.py
 ```
 
-По умолчанию слушает `0.0.0.0:5000` (см. `instance/config.json` / `conf.py`).
+По умолчанию слушает `0.0.0.0:5000` (см. `instance/config.json` / `app/data/config.py`).
 
 Пример unit-файла systemd: [`deploy/kkt-atol5.service`](deploy/kkt-atol5.service)  
 Чеклист на железе: [`docs/hardware-smoke-checklist.md`](docs/hardware-smoke-checklist.md)  
@@ -285,11 +285,11 @@ QR (при отсутствии суммы — из записи в БД), по�
 ## Структура репозитория
 
 ```
-main.py                 # Flask-приложение
-cashierService.py       # ККТ / фискальная логика
-conf.py                 # конфиг и defaults
-fault_isolation.py      # слои ошибок для поддержки
-libfptr10.py            # вендорный wrapper
+main.py                 # старт процесса: python3 main.py
+libfptr10.py            # вендорный wrapper АТОЛ
+app/http/               # API, админка, лестница диагностики
+app/services/           # печать, очередь, QR, мониторинг, слои ошибок
+app/data/               # настройки, таблицы, схема SQLite
 templates/admin/        # экраны админки
 deploy/                 # пример systemd
 tests/                  # pytest + FakeIFptr

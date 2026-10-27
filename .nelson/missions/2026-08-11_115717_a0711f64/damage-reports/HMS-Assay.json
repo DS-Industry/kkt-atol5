@@ -1,0 +1,10 @@
+{
+  "ship_name": "HMS Assay",
+  "hull_integrity": "green",
+  "hull_integrity_pct": 95,
+  "context_pressure": "low",
+  "notes": "Task 4 complete: 44 pytest passed (17 Phase C)",
+  "pytest_passed": 44,
+  "recorded_at": "2026-08-11T12:15:46.146412Z",
+  "checkpoint": 3
+}

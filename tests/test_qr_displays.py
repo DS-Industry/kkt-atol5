@@ -7,8 +7,8 @@ from unittest.mock import patch
 
 import pytest
 
-import conf
-import qr_displays as screens
+import app.data.config as conf
+import app.services.qr_displays as screens
 
 
 @pytest.fixture
@@ -156,7 +156,9 @@ def test_reenabling_preserved_duplicate_is_rejected(app_db, display_config):
 def test_failed_save_keeps_previous_mapping(app_db, display_config):
     configure(wash="192.168.28.201")
     before = conf.get_config()
-    with patch.object(app_db, "save_config", side_effect=OSError("disk full")):
+    import app.http.admin as admin
+
+    with patch.object(admin, "save_config", side_effect=OSError("disk full")):
         result = app_db.app.test_client().post("/admin/displays", json={"action": "save_addresses", "screens": {"wash": {"1": {"ip": "192.168.28.202"}}}})
     assert result.status_code == 500
     assert conf.get_config() == before
@@ -229,7 +231,7 @@ def test_display_failure_does_not_change_fiscal_success_or_reprint(app_db, displ
         main.db.session.add(check)
         main.db.session.commit()
         result = json.dumps({"documentTLV": {"qr": "test-qr"}})
-        with patch.object(main, "_ensure_shift_ready", return_value={"code": 200}), patch.object(main.cashier_service, "print_check", return_value={"code": 201}) as printing, patch.object(main.cashier_service, "readLastReciept", return_value=result), patch.object(screens, "communicate", side_effect=TimeoutError("screen offline")) as send:
+        with patch("app.services.queue._ensure_shift_ready", return_value={"code": 200}), patch.object(main.cashier_service, "print_check", return_value={"code": 201}) as printing, patch.object(main.cashier_service, "readLastReciept", return_value=result), patch.object(screens, "communicate", side_effect=TimeoutError("screen offline")) as send:
             main.job1()
             assert main.QRDisplayDelivery.query.one().status == "pending"
             for _ in range(3):

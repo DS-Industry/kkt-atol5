@@ -1,5 +1,5 @@
 """
-Patch libfptr10.IFptr before cashierService/main import so tests never load the native driver.
+Patch libfptr10.IFptr before the cashier service import so tests never load the native driver.
 """
 
 from __future__ import annotations
@@ -25,11 +25,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-# Re-import / import cashierService against FakeIFptr (fresh if previously loaded)
-if "cashierService" in sys.modules:
-    importlib.reload(sys.modules["cashierService"])
+# Re-import / import the cashier service against FakeIFptr (fresh if previously loaded)
+if "app.services.cashier" in sys.modules:
+    importlib.reload(sys.modules["app.services.cashier"])
 else:
-    import cashierService  # noqa: F401
+    import app.services.cashier  # noqa: F401
 
 
 @pytest.fixture
@@ -40,7 +40,7 @@ def fake_fptr_cls():
 @pytest.fixture
 def service(fake_fptr_cls):
     """Fresh CashierService with a controllable FakeIFptr instance."""
-    from cashierService import CashierService
+    from app.services.cashier import CashierService
 
     svc = CashierService()
     assert isinstance(svc.fptr, fake_fptr_cls)

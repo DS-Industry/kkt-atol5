@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "outcome": "Ship Phase C: persistent config (USB|TCP), CashierService TCP connect, Admin GUI screens A\u2013D meeting AC-5/AC-6",
+  "success_metric": "AC-5+AC-6 met; mocked IFptr tests green for USB/TCP+GUI persist; code-reviewer APPROVE or REQUEST_CHANGES addressed; no commit/push",
+  "deadline": "This session",
+  "budget": {
+    "token_limit": null,
+    "time_limit_minutes": null
+  },
+  "constraints": [
+    "Python 3.11 Flask; HTTP in main.py; all libfptr10 via CashierService; fiscal sequence unbroken; errorCode after native calls; HTTP status matches service code; validate JSON\u2192400; follow atol-docs for TCPIP; build on Phase A+B dirty tree; LAN trust flag for unauth routes"
+  ],
+  "out_of_scope": [
+    "Phase D packaging/systemd/full CI; Auth/PIN; tax/payment mapping changes; libfptr10 edits; silent Check typo renames; commit/push; mass OFD rewrite on boot; breaking /create-check clients"
+  ],
+  "stop_criteria": [],
+  "handoff_artifacts": [],
+  "circuit_breakers": {},
+  "created_at": "2026-08-11T11:57:17Z"
+}

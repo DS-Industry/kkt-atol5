@@ -9,8 +9,8 @@ import pytest
 import qrcode
 from PIL import Image
 
-from qr_images import _font, _wrap, qr_image_url
-from receipt_render import receipt_image, receipt_lines
+from app.services.qr_images import _font, _wrap, qr_image_url
+from app.services.receipt_render import receipt_image, receipt_lines
 
 
 QR = "t=20260102T0304&s=500.00&fn=9999999999999999&i=42&fp=12345&n=1"
@@ -144,7 +144,9 @@ def test_successful_job_persists_entire_fn_response(app_db, monkeypatch, fiscal_
     main.db.session.add(row)
     main.db.session.commit()
     check_id = row.id
-    monkeypatch.setattr(main, "_ensure_shift_ready", lambda app: {"code": 200})
+    import app.services.queue as queue
+
+    monkeypatch.setattr(queue, "_ensure_shift_ready", lambda app: {"code": 200})
     monkeypatch.setattr(main.cashier_service, "print_check", lambda *args: {"code": 201})
     monkeypatch.setattr(main.cashier_service, "readLastReciept", lambda: json.dumps(fiscal_document))
     main.job1()

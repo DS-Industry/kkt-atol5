@@ -180,8 +180,10 @@ def test_create_check_protects_id_across_commit_wait_and_error(app_db):
         observed["during_wait"] = set(main._protected_check_id_counts)
         raise RuntimeError("synthetic waiter failure")
 
-    with patch.object(main, "_prune_checks_safely", side_effect=observe_prune):
-        with patch.object(main, "find_actual_check", side_effect=fail_wait):
+    import app.http.api as http_api
+
+    with patch.object(http_api, "_prune_checks_safely", side_effect=observe_prune):
+        with patch.object(http_api, "find_actual_check", side_effect=fail_wait):
             response = main.app.test_client().post(
                 "/create-check",
                 headers={

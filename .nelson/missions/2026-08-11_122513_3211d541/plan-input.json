@@ -1,0 +1,64 @@
+{
+  "squadron": {
+    "admiral": { "ship_name": "HMS Victory", "model": "opus" },
+    "captains": [
+      { "ship_name": "HMS Resolute", "ship_class": "frigate", "model": "sonnet", "task_id": 1 },
+      { "ship_name": "HMS Vigilant", "ship_class": "destroyer", "model": "sonnet", "task_id": 2 },
+      { "ship_name": "HMS Assay", "ship_class": "frigate", "model": "sonnet", "task_id": 3 }
+    ]
+  },
+  "tasks": [
+    {
+      "id": 1,
+      "name": "Implement Phase D packaging artifacts",
+      "owner": "HMS Resolute",
+      "deliverable": "requirements.txt verified; root .gitignore; deploy systemd unit; hardware smoke checklist; ops-runbook pointers",
+      "dependencies": [],
+      "station_tier": 1,
+      "file_ownership": [
+        ".gitignore",
+        "requirements.txt",
+        "deploy/kkt-atol5.service",
+        "docs/hardware-smoke-checklist.md",
+        "docs/ops-runbook.md"
+      ],
+      "modification_targets": ["requirements.txt", "docs/ops-runbook.md"],
+      "acceptance_criteria": [
+        "Root .gitignore covers F-OPS-04",
+        "systemd example restart-on-failure for Flask",
+        "Hardware smoke checklist matches FSD 10.2 Hardware row",
+        "requirements.txt complete for declared imports + pytest",
+        "No fiscal/tax/auth/Check-rename churn"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Review Phase D packaging changes",
+      "owner": "HMS Vigilant",
+      "deliverable": "Must-fix/should-fix review verdict on all Phase D files",
+      "dependencies": [1],
+      "station_tier": 1,
+      "file_ownership": [
+        ".nelson/missions/2026-08-11_122513_3211d541/damage-reports/HMS-Vigilant.json"
+      ],
+      "acceptance_criteria": [
+        "All changed files reviewed vs AGENTS.md and FSD F-OPS/DoD",
+        "Must-fix listed; no fiscal/auth scope creep"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Ensure pytest suite green",
+      "owner": "HMS Assay",
+      "deliverable": "pytest -q green; pass count reported; extend tests only if packaging requires",
+      "dependencies": [2],
+      "station_tier": 1,
+      "file_ownership": ["tests/**", "pytest.ini"],
+      "modification_targets": ["tests/", "pytest.ini"],
+      "acceptance_criteria": [
+        "pytest -q green with no regression from ~44",
+        "Pass count reported"
+      ]
+    }
+  ]
+}

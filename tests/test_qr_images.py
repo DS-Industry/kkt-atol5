@@ -6,7 +6,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from PIL import Image
 
-from qr_images import _card_details, _font, _wrap, qr_image_url, register_qr_images
+from app.services.qr_images import _card_details, _font, _wrap, qr_image_url, register_qr_images
 
 QR = "t=20260914T2009&s=750.00&fn=7380440902802880&i=4261&fp=830583019&n=1"
 
@@ -150,8 +150,10 @@ def test_create_response_url(app_db, monkeypatch):
         main.db.session.commit()
         return dict(code=201, qr=QR, qrGenerated=True, dateTime="2026-09-14T20:09:00")
 
-    monkeypatch.setattr(main, "find_actual_check", finished)
-    monkeypatch.setattr(main, "resolve_machine_number", lambda *args: ("test", []))
+    import app.http.api as http_api
+
+    monkeypatch.setattr(http_api, "find_actual_check", finished)
+    monkeypatch.setattr(http_api, "resolve_machine_number", lambda *args: ("test", []))
     client = main.app.test_client()
     response = client.post("/create-check", headers={"Data": json.dumps(
         dict(name="1", bay="1", sum=750, type="1"))})

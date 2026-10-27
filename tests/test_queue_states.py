@@ -88,9 +88,8 @@ def test_queue_shift_timeout_requeues_to_pending(app_db, pending_check):
     check_id = pending_check
 
     with main.app.app_context():
-        with patch.object(
-            main,
-            "_ensure_shift_ready",
+        with patch(
+            "app.services.queue._ensure_shift_ready",
             return_value={
                 "code": 504,
                 "message": "Shift open timed out after 0.05s",

@@ -15,22 +15,28 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_main_boot_path_has_no_drop_all():
     """Static check: Phase A boot uses create_all / _ensure_schema only (F-Q-03 / P3)."""
-    source = (ROOT / "main.py").read_text(encoding="utf-8")
-    tree = ast.parse(source)
+    boot_sources = [
+        ROOT / "main.py",
+        ROOT / "app" / "data" / "schema.py",
+    ]
+    schema_source = boot_sources[1].read_text(encoding="utf-8")
     drop_calls = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Call):
-            func = node.func
-            name = None
-            if isinstance(func, ast.Attribute) and func.attr == "drop_all":
-                name = "drop_all"
-            elif isinstance(func, ast.Name) and func.id == "drop_all":
-                name = "drop_all"
-            if name:
-                drop_calls.append(node.lineno)
-    assert drop_calls == [], f"db.drop_all must not appear in main.py (lines {drop_calls})"
-    assert "_ensure_schema" in source
-    assert "db.create_all" in source or "create_all()" in source
+    for path in boot_sources:
+        source = path.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                func = node.func
+                name = None
+                if isinstance(func, ast.Attribute) and func.attr == "drop_all":
+                    name = "drop_all"
+                elif isinstance(func, ast.Name) and func.id == "drop_all":
+                    name = "drop_all"
+                if name:
+                    drop_calls.append(f"{path.name}:{node.lineno}")
+    assert drop_calls == [], f"db.drop_all must not appear in the boot path ({drop_calls})"
+    assert "_ensure_schema" in schema_source
+    assert "db.create_all" in schema_source or "create_all()" in schema_source
 
 
 def test_startup_skips_history_prune_in_test_mode(app_db):

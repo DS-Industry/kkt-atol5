@@ -1,0 +1,353 @@
+{
+  "version": 1,
+  "events": [
+    {
+      "type": "phase_transition",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T11:32:51Z",
+      "data": {
+        "from_phase": "SAILING_ORDERS",
+        "to_phase": "ESTIMATE"
+      }
+    },
+    {
+      "type": "estimate_skipped",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T11:32:51Z",
+      "data": {
+        "reason": "FSD Phase B already concrete in docs/FSD-production-stable.md \u00a79 \u2014 same rationale as Phase A mission 2026-08-11_105418_af6f98f6; admiral ordered execute"
+      }
+    },
+    {
+      "type": "phase_transition",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T11:32:51Z",
+      "data": {
+        "from_phase": "ESTIMATE",
+        "to_phase": "BATTLE_PLAN"
+      }
+    },
+    {
+      "type": "squadron_formed",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T11:33:46Z",
+      "data": {
+        "captain_count": 3,
+        "has_red_cell": true,
+        "execution_mode": "subagents",
+        "standing_order_check": {
+          "triggered": [],
+          "remedies": []
+        }
+      }
+    },
+    {
+      "type": "battle_plan_approved",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T11:33:46Z",
+      "data": {
+        "task_count": 4,
+        "parallel_tracks": 1,
+        "critical_path_length": 4,
+        "standing_order_check": {
+          "triggered": [],
+          "remedies": []
+        }
+      }
+    },
+    {
+      "type": "phase_transition",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T11:33:47Z",
+      "data": {
+        "from_phase": "BATTLE_PLAN",
+        "to_phase": "FORMATION"
+      }
+    },
+    {
+      "type": "permission_granted",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T11:33:47Z",
+      "data": {}
+    },
+    {
+      "type": "phase_transition",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T11:33:47Z",
+      "data": {
+        "from_phase": "FORMATION",
+        "to_phase": "PERMISSION"
+      }
+    },
+    {
+      "type": "phase_transition",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T11:34:09Z",
+      "data": {
+        "from_phase": "PERMISSION",
+        "to_phase": "UNDERWAY"
+      }
+    },
+    {
+      "type": "task_started",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T11:34:09Z",
+      "data": {
+        "task_id": 1,
+        "task_name": "Implement Phase B operability",
+        "owner": "HMS Resolute"
+      }
+    },
+    {
+      "type": "task_completed",
+      "checkpoint": 1,
+      "timestamp": "2026-08-11T11:41:17Z",
+      "data": {
+        "task_id": 1,
+        "task_name": "Implement Phase B operability",
+        "owner": "HMS Resolute",
+        "station_tier": 2,
+        "verification": "passed"
+      }
+    },
+    {
+      "type": "checkpoint",
+      "checkpoint": 1,
+      "timestamp": "2026-08-11T11:41:17Z",
+      "data": {
+        "progress": {
+          "pending": 2,
+          "in_progress": 1,
+          "completed": 1,
+          "blocked": 0
+        },
+        "budget": {
+          "tokens_spent": 0,
+          "tokens_remaining": 200000,
+          "pct_consumed": 0.0,
+          "burn_rate_per_checkpoint": 0
+        },
+        "hull_summary": {
+          "green": 3,
+          "amber": 0,
+          "red": 0,
+          "critical": 0
+        },
+        "blockers": [],
+        "standing_order_violations": [],
+        "admiral_decision": "continue",
+        "admiral_rationale": "Task 1 done. Dispatching Vigilant for Station-2 review."
+      }
+    },
+    {
+      "type": "task_completed",
+      "checkpoint": 2,
+      "timestamp": "2026-08-11T11:44:06Z",
+      "data": {
+        "task_id": 2,
+        "task_name": "Review Phase B diff",
+        "owner": "HMS Vigilant",
+        "station_tier": 2,
+        "verification": "passed"
+      }
+    },
+    {
+      "type": "task_started",
+      "checkpoint": 2,
+      "timestamp": "2026-08-11T11:44:06Z",
+      "data": {
+        "task_id": 3,
+        "task_name": "Fix review must-fix",
+        "owner": "HMS Resolute"
+      }
+    },
+    {
+      "type": "checkpoint",
+      "checkpoint": 2,
+      "timestamp": "2026-08-11T11:44:07Z",
+      "data": {
+        "progress": {
+          "pending": 1,
+          "in_progress": 1,
+          "completed": 2,
+          "blocked": 0
+        },
+        "budget": {
+          "tokens_spent": 0,
+          "tokens_remaining": 200000,
+          "pct_consumed": 0.0,
+          "burn_rate_per_checkpoint": 0
+        },
+        "hull_summary": {
+          "green": 3,
+          "amber": 0,
+          "red": 0,
+          "critical": 0
+        },
+        "blockers": [],
+        "standing_order_violations": [],
+        "admiral_decision": "continue",
+        "admiral_rationale": "Vigilant REQUEST_CHANGES: 3 must-fix. Re-dispatch Resolute."
+      }
+    },
+    {
+      "type": "task_completed",
+      "checkpoint": 2,
+      "timestamp": "2026-08-11T11:50:07Z",
+      "data": {
+        "task_id": 2,
+        "task_name": "Review Phase B diff",
+        "owner": "HMS Vigilant",
+        "station_tier": 2,
+        "verification": "passed"
+      }
+    },
+    {
+      "type": "task_started",
+      "checkpoint": 2,
+      "timestamp": "2026-08-11T11:50:08Z",
+      "data": {
+        "task_id": 3,
+        "task_name": "Fix review must-fix",
+        "owner": "HMS Resolute"
+      }
+    },
+    {
+      "type": "checkpoint",
+      "checkpoint": 3,
+      "timestamp": "2026-08-11T11:50:08Z",
+      "data": {
+        "progress": {
+          "pending": 1,
+          "in_progress": 1,
+          "completed": 2,
+          "blocked": 0
+        },
+        "budget": {
+          "tokens_spent": 0,
+          "tokens_remaining": 200000,
+          "pct_consumed": 0.0,
+          "burn_rate_per_checkpoint": 0
+        },
+        "hull_summary": {
+          "green": 3,
+          "amber": 0,
+          "red": 0,
+          "critical": 0
+        },
+        "blockers": [],
+        "standing_order_violations": [],
+        "admiral_decision": "continue",
+        "admiral_rationale": "Vigilant REQUEST_CHANGES: 3 must-fix. Re-dispatch Resolute."
+      }
+    },
+    {
+      "type": "task_completed",
+      "checkpoint": 3,
+      "timestamp": "2026-08-11T11:50:50Z",
+      "data": {
+        "task_id": 3,
+        "task_name": "Fix review must-fix",
+        "owner": "HMS Resolute",
+        "station_tier": 2,
+        "verification": "passed"
+      }
+    },
+    {
+      "type": "task_started",
+      "checkpoint": 3,
+      "timestamp": "2026-08-11T11:50:50Z",
+      "data": {
+        "task_id": 4,
+        "task_name": "Add Phase B pytest keep Phase A green",
+        "owner": "HMS Assay"
+      }
+    },
+    {
+      "type": "checkpoint",
+      "checkpoint": 4,
+      "timestamp": "2026-08-11T11:50:50Z",
+      "data": {
+        "progress": {
+          "pending": 0,
+          "in_progress": 1,
+          "completed": 3,
+          "blocked": 0
+        },
+        "budget": {
+          "tokens_spent": 0,
+          "tokens_remaining": 200000,
+          "pct_consumed": 0.0,
+          "burn_rate_per_checkpoint": 0
+        },
+        "hull_summary": {
+          "green": 3,
+          "amber": 0,
+          "red": 0,
+          "critical": 0
+        },
+        "blockers": [],
+        "standing_order_violations": [],
+        "admiral_decision": "continue",
+        "admiral_rationale": "Must-fixes applied (23 tests per Resolute). Dispatch Assay for final pytest ownership."
+      }
+    },
+    {
+      "type": "task_completed",
+      "checkpoint": 4,
+      "timestamp": "2026-08-11T11:54:15Z",
+      "data": {
+        "task_id": 4,
+        "task_name": "Add Phase B pytest keep Phase A green",
+        "owner": "HMS Assay",
+        "station_tier": 1,
+        "verification": "passed"
+      }
+    },
+    {
+      "type": "checkpoint",
+      "checkpoint": 5,
+      "timestamp": "2026-08-11T11:54:15Z",
+      "data": {
+        "progress": {
+          "pending": 0,
+          "in_progress": 0,
+          "completed": 4,
+          "blocked": 0
+        },
+        "budget": {
+          "tokens_spent": 0,
+          "tokens_remaining": 200000,
+          "pct_consumed": 0.0,
+          "burn_rate_per_checkpoint": 0
+        },
+        "hull_summary": {
+          "green": 3,
+          "amber": 0,
+          "red": 0,
+          "critical": 0
+        },
+        "blockers": [],
+        "standing_order_violations": [],
+        "admiral_decision": "continue",
+        "admiral_rationale": "All 4 tasks complete. 27 pytest green. Standing down."
+      }
+    },
+    {
+      "type": "mission_complete",
+      "checkpoint": 6,
+      "timestamp": "2026-08-11T11:54:15Z",
+      "data": {
+        "outcome_achieved": true,
+        "tasks_completed": 5,
+        "tasks_total": 4,
+        "total_tokens_consumed": 0,
+        "budget_pct_consumed": 0.0,
+        "duration_minutes": 21,
+        "ships_used": 3,
+        "reliefs": 0,
+        "standing_order_violations_total": 0
+      }
+    }
+  ]
+}

@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from fault_isolation import map_error_to_layer, next_action_for_layer
+from app.services.faults import map_error_to_layer, next_action_for_layer
 
 
 def test_map_error_to_layer_known_codes():
@@ -228,9 +228,9 @@ def test_ensure_connected_reconnects_with_backoff(service):
 
     fptr.open = flaky_open
 
-    with patch("cashierService.time.sleep") as mock_sleep:
-        with patch("conf.RECONNECT_BASE_DELAY_SEC", 0.01):
-            with patch("conf.RECONNECT_MAX_DELAY_SEC", 0.05):
+    with patch("app.services.cashier.time.sleep") as mock_sleep:
+        with patch("app.data.config.RECONNECT_BASE_DELAY_SEC", 0.01):
+            with patch("app.data.config.RECONNECT_MAX_DELAY_SEC", 0.05):
                 result = service.ensure_connected()
 
     assert result["code"] == 200
@@ -258,7 +258,7 @@ def test_ensure_connected_max_attempts_one(service):
 
     fptr.open = always_fail_open
 
-    with patch("cashierService.time.sleep") as mock_sleep:
+    with patch("app.services.cashier.time.sleep") as mock_sleep:
         result = service.ensure_connected(max_attempts=1)
 
     assert result["code"] == 500
@@ -322,9 +322,9 @@ def test_print_check_reconnects_when_closed(service, flask_logger, sample_check)
 
     fptr.open = flaky_open
 
-    with patch("cashierService.time.sleep", return_value=None):
-        with patch("conf.RECONNECT_BASE_DELAY_SEC", 0.01):
-            with patch("conf.RECONNECT_MAX_DELAY_SEC", 0.05):
+    with patch("app.services.cashier.time.sleep", return_value=None):
+        with patch("app.data.config.RECONNECT_BASE_DELAY_SEC", 0.01):
+            with patch("app.data.config.RECONNECT_MAX_DELAY_SEC", 0.05):
                 result = service.print_check(sample_check, flask_logger)
 
     assert result == {"code": 201}

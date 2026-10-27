@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "updated_at": "2026-08-11T12:31:47Z",
+  "pattern_count": 4,
+  "patterns": [
+    {
+      "mission_id": "2026-08-11_105418_af6f98f6",
+      "completed_at": "2026-08-11T11:17:43Z",
+      "outcome_achieved": true,
+      "planned_outcome": "Implement Phase A Safety: fail-stop fiscal path, durable queue states, no DB wipe, timeouts, slim device init",
+      "adopt": [],
+      "avoid": [],
+      "standing_order_violations": [],
+      "damage_control_events": 0,
+      "quality": {
+        "violations": 0,
+        "blockers_raised": 0,
+        "blockers_resolved": 0,
+        "task_completion_rate": 1.0
+      }
+    },
+    {
+      "mission_id": "2026-08-11_113245_0ecb78fe",
+      "completed_at": "2026-08-11T11:54:15Z",
+      "outcome_achieved": true,
+      "planned_outcome": "Implement Phase B operability (F-Q-04\u201307, F-CONN-04\u201305, F-OPS-01\u201302, F-DIAG-*) without Phase C Admin GUI",
+      "adopt": [],
+      "avoid": [],
+      "standing_order_violations": [],
+      "damage_control_events": 0,
+      "quality": {
+        "violations": 0,
+        "blockers_raised": 0,
+        "blockers_resolved": 0,
+        "task_completion_rate": 1.25
+      }
+    },
+    {
+      "mission_id": "2026-08-11_115717_a0711f64",
+      "completed_at": "2026-08-11T12:16:03Z",
+      "outcome_achieved": true,
+      "planned_outcome": "Ship Phase C: persistent config (USB|TCP), CashierService TCP connect, Admin GUI screens A\u2013D meeting AC-5/AC-6",
+      "adopt": [],
+      "avoid": [],
+      "standing_order_violations": [],
+      "damage_control_events": 0,
+      "quality": {
+        "violations": 0,
+        "blockers_raised": 0,
+        "blockers_resolved": 0,
+        "task_completion_rate": 1.0
+      }
+    },
+    {
+      "mission_id": "2026-08-11_122513_3211d541",
+      "completed_at": "2026-08-11T12:31:47Z",
+      "outcome_achieved": true,
+      "planned_outcome": "Deliver Phase D packaging: requirements, root .gitignore, systemd unit example, hardware smoke checklist, pytest green, ops-runbook pointers",
+      "adopt": [
+        "Packaging-only Tier L can skip Estimate with recorded FSD-clear reason",
+        "Serial specialist chain Resolute\u2192Vigilant\u2192Assay for packaging keeps split-keel clean"
+      ],
+      "avoid": [
+        "Leaving ops-runbook port examples inconsistent with conf defaults"
+      ],
+      "standing_order_violations": [],
+      "damage_control_events": 0,
+      "quality": {
+        "violations": 0,
+        "blockers_raised": 0,
+        "blockers_resolved": 0,
+        "task_completion_rate": 1.0
+      }
+    }
+  ]
+}

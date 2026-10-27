@@ -7,8 +7,8 @@ import json
 
 import pytest
 
-import conf
-from cashierService import FFD_TAG_MACHINE_NUMBER
+import app.data.config as conf
+from app.services.cashier import FFD_TAG_MACHINE_NUMBER
 
 
 @pytest.fixture

@@ -6,8 +6,8 @@ from html import unescape
 
 import pytest
 
-import conf
-from cashierService import FFD_TAG_CASHIER_INN, FFD_TAG_CASHIER_NAME
+import app.data.config as conf
+from app.services.cashier import FFD_TAG_CASHIER_INN, FFD_TAG_CASHIER_NAME
 
 
 @pytest.fixture

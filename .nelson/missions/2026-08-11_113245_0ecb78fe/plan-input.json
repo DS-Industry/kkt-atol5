@@ -1,0 +1,77 @@
+{
+  "mode": "subagents",
+  "squadron": {
+    "admiral": { "ship_name": "HMS Victory", "model": "inherit" },
+    "captains": [
+      { "ship_name": "HMS Resolute", "ship_class": "flagship", "model": "inherit", "task_id": 1 },
+      { "ship_name": "HMS Vigilant", "ship_class": "destroyer", "model": "inherit", "task_id": 2 },
+      { "ship_name": "HMS Assay", "ship_class": "frigate", "model": "inherit", "task_id": 4 }
+    ],
+    "red_cell": { "ship_name": "HMS Vigilant", "model": "inherit" }
+  },
+  "tasks": [
+    {
+      "id": 1,
+      "name": "Implement Phase B operability",
+      "owner": "HMS Resolute",
+      "deliverable": "Phase B MUST in cashierService.py, main.py, conf.py, docs/ — F-Q-04–07, F-CONN-04–05, F-OPS-01–02, F-DIAG-01–05/+07",
+      "dependencies": [],
+      "station_tier": 2,
+      "file_ownership": ["cashierService.py", "main.py", "conf.py", "docs/"],
+      "modification_targets": [
+        "main.py find_actual_check",
+        "main.py create_check",
+        "main.py Check model + schema migrate",
+        "main.py soft-retain no delete on QR",
+        "main.py scheduler entrypoint",
+        "main.py /health and /admin/diagnostics",
+        "main.py RotatingFileHandler",
+        "CashierService reconnect backoff",
+        "CashierService diagnostics ladder",
+        "CashierService layer mapping",
+        "conf.py retention and reconnect knobs",
+        "docs ops runbook USB + scheduler"
+      ],
+      "acceptance_criteria": [
+        "F-Q-04 id poll",
+        "F-Q-05 QR 504",
+        "F-Q-06 soft-retain",
+        "F-Q-07 scheduler entrypoint",
+        "F-CONN-04 reconnect",
+        "F-CONN-05 USB docs",
+        "F-OPS-01 rotating logs",
+        "F-OPS-02 /health",
+        "F-DIAG-01..05 ladder+layers",
+        "F-DIAG-07 layer on failed checks",
+        "No Phase A regression"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Review Phase B diff",
+      "owner": "HMS Vigilant",
+      "deliverable": "Verdict + must-fix findings",
+      "dependencies": [1],
+      "station_tier": 2,
+      "file_ownership": []
+    },
+    {
+      "id": 3,
+      "name": "Fix review must-fix",
+      "owner": "HMS Resolute",
+      "deliverable": "Must-fix from review addressed or N/A",
+      "dependencies": [2],
+      "station_tier": 2,
+      "file_ownership": ["cashierService.py", "main.py", "conf.py", "docs/"]
+    },
+    {
+      "id": 4,
+      "name": "Add Phase B pytest keep Phase A green",
+      "owner": "HMS Assay",
+      "deliverable": "pytest for id-poll, soft-retain, reconnect, health/diagnostics, fault layers; Phase A green",
+      "dependencies": [1, 3],
+      "station_tier": 1,
+      "file_ownership": ["tests/", "pytest.ini", "requirements.txt"]
+    }
+  ]
+}

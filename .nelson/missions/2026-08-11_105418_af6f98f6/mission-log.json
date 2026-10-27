@@ -1,0 +1,172 @@
+{
+  "version": 1,
+  "events": [
+    {
+      "type": "estimate_skipped",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T10:54:23Z",
+      "data": {
+        "reason": "FSD Phase A already lists concrete P1-P5 and F-FISC/F-Q IDs; scope well-defined"
+      }
+    },
+    {
+      "type": "phase_transition",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T10:54:23Z",
+      "data": {
+        "from_phase": "SAILING_ORDERS",
+        "to_phase": "ESTIMATE"
+      }
+    },
+    {
+      "type": "phase_transition",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T10:54:23Z",
+      "data": {
+        "from_phase": "ESTIMATE",
+        "to_phase": "BATTLE_PLAN"
+      }
+    },
+    {
+      "type": "permission_granted",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T10:54:59Z",
+      "data": {}
+    },
+    {
+      "type": "squadron_formed",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T10:55:21Z",
+      "data": {
+        "captain_count": 3,
+        "has_red_cell": true,
+        "execution_mode": "subagents",
+        "standing_order_check": {
+          "triggered": [],
+          "remedies": []
+        }
+      }
+    },
+    {
+      "type": "battle_plan_approved",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T10:55:21Z",
+      "data": {
+        "task_count": 4,
+        "parallel_tracks": 1,
+        "critical_path_length": 4,
+        "standing_order_check": {
+          "triggered": [],
+          "remedies": []
+        }
+      }
+    },
+    {
+      "type": "phase_transition",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T10:55:21Z",
+      "data": {
+        "from_phase": "BATTLE_PLAN",
+        "to_phase": "FORMATION"
+      }
+    },
+    {
+      "type": "phase_transition",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T10:55:21Z",
+      "data": {
+        "from_phase": "FORMATION",
+        "to_phase": "PERMISSION"
+      }
+    },
+    {
+      "type": "phase_transition",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T10:56:11Z",
+      "data": {
+        "from_phase": "PERMISSION",
+        "to_phase": "UNDERWAY"
+      }
+    },
+    {
+      "type": "task_started",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T10:56:21Z",
+      "data": {
+        "task_id": 1
+      }
+    },
+    {
+      "type": "task_started",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T11:05:56Z",
+      "data": {
+        "task_id": 1
+      }
+    },
+    {
+      "type": "task_completed",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T11:06:34Z",
+      "data": {
+        "task_id": 1
+      }
+    },
+    {
+      "type": "task_completed",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T11:10:07Z",
+      "data": {
+        "task_id": 2
+      }
+    },
+    {
+      "type": "task_started",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T11:10:08Z",
+      "data": {
+        "task_id": 3
+      }
+    },
+    {
+      "type": "task_completed",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T11:12:47Z",
+      "data": {
+        "task_id": 3
+      }
+    },
+    {
+      "type": "task_started",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T11:12:47Z",
+      "data": {
+        "task_id": 4
+      }
+    },
+    {
+      "type": "task_completed",
+      "checkpoint": 0,
+      "timestamp": "2026-08-11T11:17:31Z",
+      "data": {
+        "task_id": 4
+      }
+    },
+    {
+      "type": "mission_complete",
+      "checkpoint": 1,
+      "timestamp": "2026-08-11T11:17:43Z",
+      "data": {
+        "outcome_achieved": true,
+        "tasks_completed": 4,
+        "tasks_total": 4,
+        "total_tokens_consumed": 0,
+        "budget_pct_consumed": 0.0,
+        "duration_minutes": 23,
+        "ships_used": 3,
+        "reliefs": 0,
+        "standing_order_violations_total": 0
+      }
+    }
+  ]
+}

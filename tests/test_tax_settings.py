@@ -6,8 +6,8 @@ from html import unescape
 
 import pytest
 
-import conf
-from cashierService import TAX_DRIVER_TYPES
+import app.data.config as conf
+from app.services.cashier import TAX_DRIVER_TYPES
 from libfptr10 import IFptr
 
 
