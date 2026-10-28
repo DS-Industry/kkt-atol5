@@ -66,8 +66,9 @@ register_qr_images(app, db, Check)
 
 def _should_autostart_scheduler() -> bool:
     """
-    Start job1 under the real process entrypoint (F-Q-07), including gunicorn/systemd
-    import of main:app — not only `if __name__ == '__main__'`.
+    Start job1 under the real process entrypoint (F-Q-07).
+    Supervisor runs `python3 main.py`, so the __main__ block starts the scheduler.
+    A gunicorn/WSGI import of main:app starts it on import.
     Skip under pytest / DISABLE_SCHEDULER / Werkzeug reloader parent.
     Under reloader: only when WERKZEUG_RUN_MAIN == "true" (child).
     """
@@ -83,7 +84,7 @@ def _should_autostart_scheduler() -> bool:
     # Reloader parent (or any non-true RUN_MAIN): do not start
     if "WERKZEUG_RUN_MAIN" in os.environ:
         return False
-    # WSGI import (gunicorn/systemd): module is not __main__
+    # WSGI import (gunicorn): module is not __main__
     if __name__ != "__main__":
         return True
     # `python main.py` parent before reloader — defer to __main__ block
@@ -123,7 +124,8 @@ _initialize_database_at_startup()
 
 app.logger.info("The program has started!")
 
-# F-Q-07: start scheduler for production import path (systemd/gunicorn main:app)
+# F-Q-07: start scheduler when this module is imported (gunicorn main:app).
+# supervisorctl runs `python3 main.py`, which starts the scheduler below.
 if _should_autostart_scheduler():
     start_scheduler()
 

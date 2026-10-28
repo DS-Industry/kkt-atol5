@@ -9,7 +9,7 @@ Short production notes for site ops and tech support. Related: `docs/issues/issu
 |-------|--------|
 | Install deps + run mocked tests | `pip install -r requirements.txt` then `pytest -q` (no hardware / no native `libfptr10` required for the suite) |
 | Dev Mac (no ATOL driver) | `MOCK_IFPTR=1 python3 main.py` — uses `tests/fake_fptr` so Admin GUI/API start without `libfptr10`; **not** for fiscal/print validation |
-| systemd unit example | [`deploy/kkt-atol5.service`](../deploy/kkt-atol5.service) — copy to `/etc/systemd/system/`, set `WorkingDirectory`/`User`, `Restart=on-failure` |
+| Supervisor program | [`deploy/flesh.conf`](../deploy/flesh.conf) — program name `flesh`. Copy to `/etc/supervisor/conf.d/`, then `sudo supervisorctl reread && sudo supervisorctl update`. List all programs with `sudo supervisorctl status`. Restart with `sudo supervisorctl restart flesh` |
 | Hardware smoke (Orange Pi) | [`docs/hardware-smoke-checklist.md`](hardware-smoke-checklist.md) — FSD §10.2 Hardware row |
 
 ---
@@ -25,7 +25,7 @@ pytest, not when `DISABLE_SCHEDULER=1`). That covers:
 | How you run | Scheduler |
 |-------------|-----------|
 | `python3 main.py` | Starts on import / `__main__` |
-| systemd / unit running `python3 main.py` | Starts on import |
+| `supervisorctl` program running `python3 main.py` | Starts in `__main__` |
 | `gunicorn -w 1 ... "main:app"` (or similar WSGI import of `main:app`) | Starts when the worker imports `main` |
 
 **Disable for tests/debug:** `DISABLE_SCHEDULER=1`.

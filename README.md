@@ -196,7 +196,15 @@ python3 main.py
 
 По умолчанию слушает `0.0.0.0:5000` (см. `instance/config.json` / `app/data/config.py`).
 
-Пример unit-файла systemd: [`deploy/kkt-atol5.service`](deploy/kkt-atol5.service)  
+На кассе процесс держит Supervisor. Имя программы на Orange Pi — `flesh`. Пример: [`deploy/flesh.conf`](deploy/flesh.conf). После копирования в `/etc/supervisor/conf.d/`:
+
+```bash
+sudo supervisorctl reread
+sudo supervisorctl update
+sudo supervisorctl start flesh
+```
+
+Список всех программ: `sudo supervisorctl status`. Перезапуск: `sudo supervisorctl restart flesh`.
 Чеклист на железе: [`docs/hardware-smoke-checklist.md`](docs/hardware-smoke-checklist.md)  
 Операционка (USB autosuspend, health, диагностика): [`docs/ops-runbook.md`](docs/ops-runbook.md)
 
@@ -278,7 +286,7 @@ QR (при отсутствии суммы — из записи в БД), по�
 |----------|------------|
 | [`docs/FSD-production-stable.md`](docs/FSD-production-stable.md) | Функциональные требования и критерии приёмки |
 | [`docs/issues/issues.md`](docs/issues/issues.md) | Полевые проблемы (USB, ОФД, питание) |
-| [`docs/ops-runbook.md`](docs/ops-runbook.md) | Запуск, systemd, диагностика |
+| [`docs/ops-runbook.md`](docs/ops-runbook.md) | Запуск, supervisorctl, диагностика |
 | [`AGENTS.md`](AGENTS.md) | Правила для разработчиков и агентов |
 | [integration.atol.ru](https://integration.atol.ru/api-en) | Официальный API драйвера АТОЛ |
 
@@ -291,7 +299,7 @@ app/http/               # API, админка, лестница диагност
 app/services/           # печать, очередь, QR, мониторинг, слои ошибок
 app/data/               # настройки, таблицы, схема SQLite
 templates/admin/        # экраны админки
-deploy/                 # пример systemd
+deploy/                 # пример программы Supervisor
 tests/                  # pytest + FakeIFptr
 docs/                   # FSD, runbook, чеклисты
 instance/               # локальные БД и config.json (в .gitignore)

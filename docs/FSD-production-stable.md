@@ -80,7 +80,7 @@ Car wash  --HTTP-->  Orange Pi app  --USB or TCP-->  ATOL KKT  --> OFD
 | P5 | ~50 device settings rewritten every process start | Runtime: model/port/IP only; OFD/network = one-time provisioning |
 | P6 | Check row deleted after QR | Keep row (soft-complete); match by `id`, not `name` |
 | P7 | No reconnect on USB drop | Detect not-open; reconnect with backoff |
-| P8 | No dependency/deploy hygiene | `requirements.txt`, `.gitignore`, documented run (systemd or equivalent) |
+| P8 | No dependency/deploy hygiene | `requirements.txt`, `.gitignore`, documented run (supervisorctl) |
 | P9 | Config only in code | GUI + file/env for connection and timeouts |
 | P10 | Logs only on disk via SSH | Simple log viewer in Admin GUI |
 
@@ -205,7 +205,7 @@ Simple local web UI (same Flask app or static pages under `/admin`), usable on p
 | F-OPS-02 | MUST | `/health` or Admin status: DB ok + device open + shift (best-effort). |
 | F-OPS-03 | MUST | `requirements.txt` with pinned Flask stack. |
 | F-OPS-04 | MUST | Root `.gitignore` (pycache, logs, DBs, `.env`, IDE junk). |
-| F-OPS-05 | SHOULD | systemd unit example for Orange Pi (restart on failure). |
+| F-OPS-05 | SHOULD | Supervisor program example for Orange Pi (`autorestart=true`). |
 | F-OPS-06 | SHOULD | Short ops runbook: USB autosuspend, OFD check, when to replace PSU/KKT. |
 
 ### 5.8 Fault isolation for tech support — MUST
@@ -240,7 +240,7 @@ Support must answer in minutes: **is it our Orange Pi / Python service, the USB/
 
 | Signal | Layer | Support hint |
 |--------|-------|--------------|
-| Process down / HTTP unreachable | `APP` | Restart service / Orange Pi; check systemd |
+| Process down / HTTP unreachable | `APP` | Restart service / Orange Pi; `supervisorctl status flesh` |
 | SQLite error / schema / wiped queue | `APP` | Our app/data path |
 | App timeout while device never opened | `LINK` or `APP` | Diagnostics ladder decides |
 | Error **4** port unavailable / `isOpened==0` | `LINK` | USB cable/autosuspend **or** TCP IP/port/power; try TCP if USB flaky |
@@ -310,7 +310,7 @@ F-Q-04–07, F-CONN-04–05, F-OPS-01–02, **F-DIAG-*** (diagnostics ladder + l
 F-CFG-*, F-CONN-01–03, Admin screens A–D (Status with fault layer, Settings, Logs, Checks).
 
 ### Phase D — Packaging & tests — **P1**
-requirements, gitignore, systemd example, pytest with mocked IFptr, hardware smoke checklist.
+requirements, gitignore, Supervisor program example, pytest with mocked IFptr, hardware smoke checklist.
 
 ---
 

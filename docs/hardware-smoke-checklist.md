@@ -4,7 +4,7 @@ Operator checklist for FSD §10.2 **Hardware** row. Run on a real Orange Pi with
 printer attached. Mocked pytest does **not** replace this.
 
 Related: [`docs/issues/issues.md`](issues/issues.md) (USB autosuspend, PSU sag, FN/OFD),
-[`docs/ops-runbook.md`](ops-runbook.md) (health, diagnostics, systemd).
+[`docs/ops-runbook.md`](ops-runbook.md) (health, diagnostics, supervisorctl).
 
 **Do not invent Auth/PIN** — `/admin*` is LAN-trust only for this MVP.
 
@@ -16,7 +16,7 @@ date at the bottom.
 ## Preconditions
 
 - [ ] ATOL driver / `libfptr10` present (`LIBRARY_PATH`, typically `/usr/lib/`)
-- [ ] Service running (`python3 main.py` or systemd unit `deploy/kkt-atol5.service`)
+- [ ] Service running (`sudo supervisorctl status flesh`, or a single `python3 main.py`)
 - [ ] If USB flaky historically: `usbcore.autosuspend=-1` in `/boot/orangepiEnv.txt` and reboot ([issues.md](issues/issues.md))
 - [ ] Stable PSU (field notes: voltage sag → multi-minute ops / timeouts)
 
@@ -63,7 +63,7 @@ If stuck: check `layer` on failed rows (`GET /get-checks?layer=…`) and diagnos
 ## 3. Restart keeps DB
 
 - [ ] Note a known check id / count before restart
-- [ ] Restart service: `sudo systemctl restart kkt-atol5` (or stop/start `python3 main.py`)
+- [ ] Restart service: `sudo supervisorctl restart flesh` (or stop/start `python3 main.py`)
 - [ ] After start: same SQLite data present (`instance/` DB); prior checks still listed
 - [ ] Scheduler/`job1` running again (logs mention APScheduler / pending work drains)
 

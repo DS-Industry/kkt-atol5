@@ -1,0 +1,46 @@
+# Virtual environments are created separately on each computer.
+.venv/
+.venv-*/
+venv/
+env/
+
+# Python bytecode, test caches and coverage reports.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Local cash register settings, databases and QR signing key.
+/instance/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Runtime logs and local environment variables.
+*.log
+*.log.*
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Local editor settings and agent runtime state.
+.idea/
+.vscode/
+.nelson/
+
+# Packaging output and operating system files.
+build/
+dist/
+*.egg-info/
+.DS_Store
+._*
+Thumbs.db

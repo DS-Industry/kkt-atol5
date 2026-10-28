@@ -1,8 +1,0 @@
-{
-  "ship_name": "HMS Victory",
-  "hull_integrity": "green",
-  "context_pressure": "low",
-  "notes": "Admiral coordinating; no implementation",
-  "recorded_at": "2026-08-11T12:10:04.747111Z",
-  "checkpoint": 1
-}

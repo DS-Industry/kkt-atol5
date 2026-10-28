@@ -45,9 +45,9 @@
   sudo tr '\0' ' ' < /proc/3466/cmdline
   echo
 
-Если это kkt-atol5, остановите его штатным способом. Для systemd:
+Если это kkt-atol5, остановите его штатным способом. Для Supervisor:
 
-  sudo systemctl stop kkt-atol5
+  sudo supervisorctl stop flesh
 
 Если программа была запущена вручную — вернитесь в её терминал и нажмите
 Ctrl+C. Не запускайте вторую копию поверх первой.
@@ -79,10 +79,10 @@ Ctrl+C. Не запускайте вторую копию поверх перв�
   cd /home/orangepi/Desktop/kkt-atol5
   python3 main.py
 
-Либо, если у вас настроен systemd:
+Либо, если программа заведена в Supervisor:
 
-  sudo systemctl start kkt-atol5
-  sudo systemctl status kkt-atol5 --no-pager
+  sudo supervisorctl start flesh
+  sudo supervisorctl status flesh
 
 5. Проверьте порт:
 

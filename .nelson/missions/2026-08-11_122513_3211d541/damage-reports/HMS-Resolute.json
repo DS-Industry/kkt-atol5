@@ -1,6 +1,0 @@
-{
-  "ship": "HMS-Resolute",
-  "hull": "Green",
-  "context_remaining_pct": 72,
-  "notes": "Phase D packaging complete: root .gitignore (F-OPS-04), deploy/kkt-atol5.service (Restart=on-failure, single-process python3 main.py), docs/hardware-smoke-checklist.md (FSD §10.2 Hardware row), ops-runbook pointers for pytest/systemd/smoke. requirements.txt already matched Flask/Flask-SQLAlchemy/Flask-APScheduler/SQLAlchemy/pytest — no change. Zero .py application churn. Assumptions: WorkingDirectory=/opt/kkt-atol5; User= commented; HTTP bind from instance/config.json. Rollback: delete new files; revert ops-runbook Phase D table."
-}
