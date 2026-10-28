@@ -9,7 +9,7 @@ Short production notes for site ops and tech support. Related: `docs/issues/issu
 |-------|--------|
 | Install deps + run mocked tests | `pip install -r requirements.txt` then `pytest -q` (no hardware / no native `libfptr10` required for the suite) |
 | Dev Mac (no ATOL driver) | `MOCK_IFPTR=1 python3 main.py` — uses `tests/fake_fptr` so Admin GUI/API start without `libfptr10`; **not** for fiscal/print validation |
-| Supervisor program | [`deploy/flesh.conf`](../deploy/flesh.conf) — program name `flesh`. Copy to `/etc/supervisor/conf.d/`, then `sudo supervisorctl reread && sudo supervisorctl update`. List all programs with `sudo supervisorctl status`. Restart with `sudo supervisorctl restart flesh` |
+| Supervisor program | [`deploy/flesh.conf`](../deploy/flesh.conf) is a template. Run `sudo python3 deploy/install_supervisor.py` to detect the checkout path and generate `/etc/supervisor/conf.d/flesh.conf` outside Git, then `sudo systemctl enable --now supervisor`, `sudo supervisorctl reread` and `sudo supervisorctl update`. Optional `--project-dir /path/to/project` selects another checkout. Do not copy the template directly. Restart after code updates with `sudo supervisorctl restart flesh`. Reinstall after moving the project; reinstalling replaces local Supervisor customizations. |
 | Hardware smoke (Orange Pi) | [`docs/hardware-smoke-checklist.md`](hardware-smoke-checklist.md) — FSD §10.2 Hardware row |
 
 ---

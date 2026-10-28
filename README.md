@@ -196,13 +196,26 @@ python3 main.py
 
 По умолчанию слушает `0.0.0.0:5000` (см. `instance/config.json` / `app/data/config.py`).
 
-На кассе процесс держит Supervisor. Имя программы на Orange Pi — `flesh`. Пример: [`deploy/flesh.conf`](deploy/flesh.conf). После копирования в `/etc/supervisor/conf.d/`:
+На кассе процесс держит Supervisor. Имя программы на Orange Pi — `flesh`.
+[`deploy/flesh.conf`](deploy/flesh.conf) — общий шаблон без путей конкретного устройства.
+После создания `.venv` установите конфигурацию из папки проекта:
 
 ```bash
+sudo python3 deploy/install_supervisor.py
+sudo systemctl enable --now supervisor
 sudo supervisorctl reread
 sudo supervisorctl update
-sudo supervisorctl start flesh
+sudo supervisorctl status flesh
 ```
+
+Установщик определяет расположение проекта по своему файлу и записывает реальные
+пути в `/etc/supervisor/conf.d/flesh.conf`, вне Git. Запускать его можно из любой
+папки, указав путь к скрипту. Для другого расположения проекта можно передать
+`--project-dir /путь/к/kkt-atol5`. Шаблон вручную редактировать или копировать не нужно.
+После переноса проекта повторите установку; `.venv` создайте заново на новом месте.
+При обычном обновлении кода достаточно `git pull --ff-only` и
+`sudo supervisorctl restart flesh`. Локальные настройки Supervisor меняйте в
+`/etc/supervisor/conf.d/flesh.conf`; повторная установка заменяет этот файл шаблоном.
 
 Список всех программ: `sudo supervisorctl status`. Перезапуск: `sudo supervisorctl restart flesh`.
 Чеклист на железе: [`docs/hardware-smoke-checklist.md`](docs/hardware-smoke-checklist.md)  
