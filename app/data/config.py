@@ -143,20 +143,23 @@ def load_config(path: Optional[Path] = None) -> dict[str, Any]:
     global _config
     cfg_path = Path(path) if path is not None else CONFIG_PATH
     overlay = None
+    migrate_http_port = False
     if cfg_path.is_file():
         try:
             with open(cfg_path, "r", encoding="utf-8") as fh:
                 raw = json.load(fh)
             if isinstance(raw, dict):
                 overlay = dict(raw)
-                # Legacy releases used 5050. The service now has one supported
-                # HTTP port, 5000; an ordinary Settings save persists it.
-                if overlay.get("http_port") in (5050, "5050"):
+                # Migrate old installations to the default HTTP port.
+                if overlay.get("http_port") in (5050, "5050", 5051, "5051"):
                     overlay["http_port"] = DEFAULTS["http_port"]
+                    migrate_http_port = True
         except (OSError, json.JSONDecodeError, TypeError):
             overlay = None
     _config = _merge_defaults(overlay)
     _sync_module_attrs(_config)
+    if migrate_http_port:
+        save_config(path=cfg_path)
     return deepcopy(_config)
 
 

@@ -57,7 +57,7 @@ def test_save_load_roundtrip_mode_ip_port_and_fcfg02(isolated_config):
         "kkt_tcp_port": 7777,
         "library_path": "/opt/atol/",
         "http_host": "127.0.0.1",
-        "http_port": 5051,
+        "http_port": 5001,
         "qr_wait_timeout_sec": 90,
         "shift_open_timeout_sec": 60,
         "log_path": "custom-atol.log",
@@ -77,15 +77,19 @@ def test_save_load_roundtrip_mode_ip_port_and_fcfg02(isolated_config):
     assert conf.KKT_TCP_PORT == 7777
 
 
-def test_load_migrates_legacy_http_port_5050(isolated_config):
+@pytest.mark.parametrize("legacy_port", [5050, "5050", 5051, "5051"])
+def test_load_migrates_legacy_http_port(isolated_config, legacy_port):
     isolated_config.write_text(
-        json.dumps({"http_port": 5050}), encoding="utf-8"
+        json.dumps({"http_port": legacy_port, "kkt_ip": "192.168.10.20"}), encoding="utf-8"
     )
 
     loaded = conf.load_config(isolated_config)
 
     assert loaded["http_port"] == 5000
     assert conf.HTTP_PORT == 5000
+    persisted = json.loads(isolated_config.read_text(encoding="utf-8"))
+    assert persisted["http_port"] == 5000
+    assert persisted["kkt_ip"] == "192.168.10.20"
 
 
 def test_validate_settings_rejects_invalid_payloads(isolated_config):
