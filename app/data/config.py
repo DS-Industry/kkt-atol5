@@ -71,7 +71,6 @@ DEFAULTS: dict[str, Any] = {
     "log_backup_count": 10,
     "monitoring_url": "",
     "monitoring_pos_id": None,
-    "monitoring_api_key": "",
 }
 
 _PERSIST_KEYS = frozenset(DEFAULTS.keys())
@@ -135,6 +134,48 @@ def _sync_module_attrs(cfg: dict[str, Any]) -> None:
     MAX_LOG_LINES = int(cfg["max_log_lines"])
 
 
+def monitoring_api_key_path(config_path: Optional[Path] = None) -> Path:
+    cfg_path = Path(config_path) if config_path is not None else CONFIG_PATH
+    return cfg_path.parent / "monitoring-api-key"
+
+
+def get_monitoring_api_key(config_path: Optional[Path] = None) -> str:
+    path = monitoring_api_key_path(config_path)
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    for line in text.splitlines():
+        key = line.strip()
+        if key:
+            return key
+    return ""
+
+
+def _write_monitoring_api_key(value: str, config_path: Optional[Path] = None) -> None:
+    path = monitoring_api_key_path(config_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = value.strip() + "\n"
+    fd, tmp_name = tempfile.mkstemp(
+        dir=str(path.parent),
+        prefix=".monitoring-api-key-",
+        suffix=".tmp",
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(payload)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.chmod(tmp_name, 0o600)
+        os.replace(tmp_name, path)
+    except Exception:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
+
+
 def load_config(path: Optional[Path] = None) -> dict[str, Any]:
     """
     Load ``instance/config.json`` over defaults.
@@ -144,21 +185,32 @@ def load_config(path: Optional[Path] = None) -> dict[str, Any]:
     cfg_path = Path(path) if path is not None else CONFIG_PATH
     overlay = None
     migrate_http_port = False
+    strip_api_key = False
+    legacy_key = None
     if cfg_path.is_file():
         try:
             with open(cfg_path, "r", encoding="utf-8") as fh:
                 raw = json.load(fh)
-            if isinstance(raw, dict):
-                overlay = dict(raw)
-                # Migrate old installations to the default HTTP port.
-                if overlay.get("http_port") in (5050, "5050", 5051, "5051"):
-                    overlay["http_port"] = DEFAULTS["http_port"]
-                    migrate_http_port = True
         except (OSError, json.JSONDecodeError, TypeError):
-            overlay = None
+            raw = None
+        if isinstance(raw, dict):
+            overlay = dict(raw)
+            # Migrate old installations to the default HTTP port.
+            if overlay.get("http_port") in (5050, "5050", 5051, "5051"):
+                overlay["http_port"] = DEFAULTS["http_port"]
+                migrate_http_port = True
+            if "monitoring_api_key" in overlay:
+                legacy_key = overlay.pop("monitoring_api_key")
+                strip_api_key = True
+    if (
+        isinstance(legacy_key, str)
+        and legacy_key.strip()
+        and not get_monitoring_api_key(cfg_path)
+    ):
+        _write_monitoring_api_key(legacy_key, cfg_path)
     _config = _merge_defaults(overlay)
     _sync_module_attrs(_config)
-    if migrate_http_port:
+    if migrate_http_port or strip_api_key:
         save_config(path=cfg_path)
     return deepcopy(_config)
 

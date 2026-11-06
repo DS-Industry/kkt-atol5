@@ -7,7 +7,12 @@ from datetime import date, datetime, timedelta, timezone
 
 import app.services.fiscal_report as fiscal_report
 import app.services.qr_displays as qr_displays
-from app.data.config import CHECK_RETENTION_DAYS, QR_WAIT_TIMEOUT_SEC, get_config
+from app.data.config import (
+    CHECK_RETENTION_DAYS,
+    QR_WAIT_TIMEOUT_SEC,
+    get_config,
+    get_monitoring_api_key,
+)
 from app.data.models import (
     STATUS_DONE,
     STATUS_FAILED,
@@ -362,7 +367,7 @@ def _queue_fiscal_outcome(check):
             return
         cfg = get_config()
         base_url = (cfg.get("monitoring_url") or "").strip()
-        api_key = (cfg.get("monitoring_api_key") or "").strip()
+        api_key = get_monitoring_api_key()
         pos_id = _configured_pos_id(cfg)
         if not base_url or not api_key or pos_id is None:
             return
@@ -409,7 +414,7 @@ def _queue_fiscal_outcome(check):
 def flush_fiscal_outbox():
     cfg = get_config()
     base_url = (cfg.get("monitoring_url") or "").strip()
-    api_key = (cfg.get("monitoring_api_key") or "").strip()
+    api_key = get_monitoring_api_key()
     if not base_url or not api_key:
         return
     rows = FiscalOutbox.query.order_by(FiscalOutbox.id.asc()).all()

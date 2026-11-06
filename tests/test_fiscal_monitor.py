@@ -114,9 +114,11 @@ def _enable_monitoring(isolated_config):
         {
             "monitoring_url": "https://monitor.example",
             "monitoring_pos_id": 15,
-            "monitoring_api_key": "org-secret",
         },
         path=isolated_config,
+    )
+    (isolated_config.parent / "monitoring-api-key").write_text(
+        "org-secret\n", encoding="utf-8"
     )
 
 
@@ -271,6 +273,61 @@ def test_settings_page_shows_url_and_pos_id_without_api_key(app_db, isolated_con
     saved = conf.get_config()
     assert saved["monitoring_url"] == "https://monitor.example"
     assert saved["monitoring_pos_id"] == 16
-    assert saved["monitoring_api_key"] == "org-secret"
+    assert "monitoring_api_key" not in saved
+    assert conf.get_monitoring_api_key() == "org-secret"
+    persisted = json.loads(isolated_config.read_text(encoding="utf-8"))
+    assert "monitoring_api_key" not in persisted
     assert "org-secret" not in response.get_data(as_text=True)
     assert "replaced-secret" not in response.get_data(as_text=True)
+
+
+def test_legacy_api_key_moves_to_its_own_file(isolated_config):
+    isolated_config.write_text(
+        json.dumps(
+            {
+                "monitoring_api_key": "legacy-secret",
+                "monitoring_url": "https://monitor.example",
+                "kkt_ip": "10.0.0.5",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    loaded = conf.load_config(isolated_config)
+
+    assert "monitoring_api_key" not in loaded
+    assert loaded["monitoring_url"] == "https://monitor.example"
+    assert loaded["kkt_ip"] == "10.0.0.5"
+    assert conf.get_monitoring_api_key() == "legacy-secret"
+    persisted = json.loads(isolated_config.read_text(encoding="utf-8"))
+    assert "monitoring_api_key" not in persisted
+    assert persisted["kkt_ip"] == "10.0.0.5"
+    conf.save_config({"kkt_ip": "10.0.0.6"}, path=isolated_config)
+    assert conf.get_monitoring_api_key() == "legacy-secret"
+
+
+def test_existing_api_key_file_is_kept_when_config_also_has_one(isolated_config):
+    (isolated_config.parent / "monitoring-api-key").write_text(
+        "file-secret\n", encoding="utf-8"
+    )
+    isolated_config.write_text(
+        json.dumps({"monitoring_api_key": "json-secret", "kkt_ip": "10.0.0.5"}),
+        encoding="utf-8",
+    )
+
+    conf.load_config(isolated_config)
+
+    assert conf.get_monitoring_api_key() == "file-secret"
+    persisted = json.loads(isolated_config.read_text(encoding="utf-8"))
+    assert "monitoring_api_key" not in persisted
+    assert persisted["kkt_ip"] == "10.0.0.5"
+
+
+def test_reset_does_not_remove_api_key_file(app_db, isolated_config):
+    _enable_monitoring(isolated_config)
+    response = app_db.app.test_client().post(
+        "/admin/settings", data={"action": "reset"}
+    )
+    assert response.status_code == 200
+    assert conf.get_monitoring_api_key() == "org-secret"
+    assert conf.get_config()["monitoring_url"] == ""

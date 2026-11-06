@@ -187,10 +187,7 @@ def admin_settings():
         ) or "save"
 
         if action == "reset":
-            kept_key = get_config().get("monitoring_api_key") or ""
             cfg = reset_config()
-            if kept_key:
-                cfg = save_config({"monitoring_api_key": kept_key})
             flash = {"kind": "ok", "message": "Reset to defaults and saved."}
             if request.is_json or request.accept_mimetypes.best == "application/json":
                 return jsonify({"code": 200, "config": _settings_view(cfg), "message": flash["message"]}), 200
